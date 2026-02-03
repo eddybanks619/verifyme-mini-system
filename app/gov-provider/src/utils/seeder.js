@@ -18,7 +18,8 @@ const seedData = async () => {
         lastName: 'Doe',
         dateOfBirth: new Date('1990-01-01'),
         gender: 'M',
-        phone: '08012345678'
+        phone: '08012345678',
+        image: 'https://via.placeholder.com/150'
       });
 
       await BVN.create({
@@ -27,7 +28,8 @@ const seedData = async () => {
         lastName: 'Doe',
         dateOfBirth: new Date('1992-02-02'),
         phone: '08087654321',
-        enrollmentBank: '033'
+        enrollmentBank: '033',
+        image: 'https://via.placeholder.com/150'
       });
       
       await Passport.create({

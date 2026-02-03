@@ -9,7 +9,7 @@ const ninSchema = new mongoose.Schema({
   gender: { type: String, enum: ['M', 'F'] },
   address: { type: String },
   phone: { type: String },
-  photoUrl: { type: String },
+  image: { type: String },
   createdAt: { type: Date, default: Date.now }
 });
 

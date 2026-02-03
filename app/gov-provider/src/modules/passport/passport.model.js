@@ -5,6 +5,7 @@ const passportSchema = new mongoose.Schema({
   firstName: { type: String, required: true },
   lastName: { type: String, required: true },
   dateOfBirth: { type: Date, required: true },
+  photo: { type: String },
   expiryDate: { type: Date, required: true },
   issueDate: { type: Date, required: true },
   nationality: { type: String, default: 'Nigerian' },

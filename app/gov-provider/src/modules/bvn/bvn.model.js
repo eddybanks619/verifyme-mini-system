@@ -8,6 +8,7 @@ const bvnSchema = new mongoose.Schema({
   dateOfBirth: { type: Date, required: true },
   phone: { type: String, required: true },
   enrollmentBank: { type: String },
+  image: { type: String },
   createdAt: { type: Date, default: Date.now }
 });
 

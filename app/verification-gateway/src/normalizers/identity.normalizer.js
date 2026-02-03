@@ -18,7 +18,7 @@ class IdentityNormalizer {
           gender: data.gender,
           phone: data.phone,
           address: data.address,
-          photo: data.photoUrl
+          photo: data.image
         };
       case 'BVN':
         return {
@@ -26,7 +26,8 @@ class IdentityNormalizer {
           idNumber: data.bvn,
           middleName: data.middleName,
           phone: data.phone,
-          enrollmentBank: data.enrollmentBank
+          enrollmentBank: data.enrollmentBank,
+          photo: data.image
         };
       case 'PASSPORT':
         return {
