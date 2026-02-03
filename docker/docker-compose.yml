@@ -41,17 +41,17 @@ services:
     networks:
       - verifyme-network
 
-  client-app:
-    build: ../app/client-app
-    container_name: client-app
-    ports:
-      - "3002:3000"
-    environment:
-      - REACT_APP_API_URL=${REACT_APP_API_URL}
-    depends_on:
-      - verification-gateway
-    networks:
-      - verifyme-network
+#  client-app:
+#    build: ../app/client-app
+#    container_name: client-app
+#    ports:
+#      - "3002:3000"
+#    environment:
+#      - REACT_APP_API_URL=${REACT_APP_API_URL}
+#    depends_on:
+#      - verification-gateway
+#    networks:
+#      - verifyme-network
 
 networks:
   verifyme-network:
