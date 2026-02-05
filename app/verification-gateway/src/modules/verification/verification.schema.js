@@ -12,7 +12,13 @@ const verifySchema = Joi.object({
     .required()
     .messages({
       'any.required': 'ID Number is required'
-    })
+    }),
+  mode: Joi.string()
+    .valid('existence_check', 'basic_identity', 'full_profile')
+    .default('basic_identity'),
+  purpose: Joi.string()
+    .min(5)
+    .default('IDENTITY_VERIFICATION')
 });
 
 module.exports = {

@@ -1,30 +1,38 @@
 const VerificationLog = require('../../models/verification-log.model');
+const moment = require('moment');
 
 exports.getVerificationHistory = async (req, res) => {
   try {
-    // In a real multi-tenant app, you would filter by an authenticated client/organization ID.
-    // For now, we will return all logs.
+
     const { page = 1, limit = 20 } = req.query;
 
     const skip = (page - 1) * limit;
 
     const logs = await VerificationLog.find({})
-      .sort({ requestedAt: -1 }) // Newest first
+      .sort({ requestedAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
-      .select('-__v'); // Exclude internal fields
+      .select('-__v');
 
     const total = await VerificationLog.countDocuments({});
+
+    const formattedLogs = logs.map(log => {
+      const logObj = log.toObject();
+      return {
+        ...logObj,
+        requestedAt: moment(log.requestedAt).format('DD-MM-YYYY')
+      };
+    });
 
     res.json({
       status: 'success',
       meta: {
         total,
-        page: parseInt(page),
-        limit: parseInt(limit),
+        // page: parseInt(page),
+        // limit: parseInt(limit),
         pages: Math.ceil(total / limit)
       },
-      data: logs
+      data: formattedLogs
     });
 
   } catch (error) {

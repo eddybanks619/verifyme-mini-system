@@ -9,8 +9,6 @@ class NINProvider {
   }
 
   generateSignature(payload, timestamp) {
-    // For GET requests, payload is effectively empty or just the timestamp + clientId as agreed
-    // Matching the server logic: payload = { clientId, timestamp }
     const dataToSign = { clientId: this.clientId, timestamp };
     return crypto
       .createHmac('sha256', this.clientSecret)
@@ -18,12 +16,17 @@ class NINProvider {
       .digest('hex');
   }
 
-  async verify(id) {
+  async verify(id, mode = 'basic_identity', purpose = 'IDENTITY_VERIFICATION') {
     try {
       const timestamp = Date.now().toString();
       const signature = this.generateSignature({}, timestamp);
 
-      const response = await axios.get(`${this.baseUrl}/api/v1/nin/${id}`, {
+      const response = await axios.post(`${this.baseUrl}/api/v1/nin/verify`, {
+        id,
+        mode,
+        purpose,
+        consent: true
+      }, {
         headers: { 
           'x-client-id': this.clientId,
           'x-timestamp': timestamp,
@@ -34,8 +37,12 @@ class NINProvider {
     } catch (error) {
       if (error.response) {
         if (error.response.status === 404) return null;
-        // Propagate specific auth/rate limit errors
-        throw new Error(`Gov Provider Error: ${error.response.data.message || error.response.statusText}`);
+        
+        // Propagate the specific error from the gov-provider
+        const customError = new Error(error.response.data.message || error.response.statusText);
+        customError.statusCode = error.response.status;
+        customError.code = error.response.data.code;
+        throw customError;
       }
       throw new Error(`NIN Verification failed: ${error.message}`);
     }

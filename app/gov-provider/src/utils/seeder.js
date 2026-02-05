@@ -12,6 +12,8 @@ const seedData = async () => {
     if (ninCount === 0) {
       console.log('Seeding Identity Data...');
 
+      const unsplashImage = 'https://images.unsplash.com/photo-1472586662442-3eec04b9dbda?q=80&w=1174&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D';
+
       await NIN.create({
         nin: '11111111111',
         firstName: 'John',
@@ -19,7 +21,7 @@ const seedData = async () => {
         dateOfBirth: new Date('1990-01-01'),
         gender: 'M',
         phone: '08012345678',
-        image: 'https://via.placeholder.com/150'
+        image: unsplashImage
       });
 
       await BVN.create({
@@ -29,7 +31,7 @@ const seedData = async () => {
         dateOfBirth: new Date('1992-02-02'),
         phone: '08087654321',
         enrollmentBank: '033',
-        image: 'https://via.placeholder.com/150'
+        image: unsplashImage
       });
       
       await Passport.create({
@@ -62,10 +64,10 @@ const seedData = async () => {
         clientSecret: 'gov-secret-key', // In real app, hash this!
         status: 'ACTIVE',
         permissions: {
-          NIN: ['BIODATA'],
-          BVN: ['BIODATA'],
-          PASSPORT: ['BIODATA'],
-          DRIVERS_LICENSE: ['BIODATA']
+          NIN: ['existence_check', 'basic_identity', 'full_profile'],
+          BVN: ['existence_check'],
+          PASSPORT: ['existence_check', 'basic_identity', 'full_profile'],
+          DRIVERS_LICENSE: ['existence_check', 'basic_identity', 'full_profile']
         },
         rateLimit: 100
       });

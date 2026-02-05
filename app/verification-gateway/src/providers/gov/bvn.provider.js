@@ -16,12 +16,17 @@ class BVNProvider {
       .digest('hex');
   }
 
-  async verify(id) {
+  async verify(id, mode = 'basic_identity', purpose = 'IDENTITY_VERIFICATION') {
     try {
       const timestamp = Date.now().toString();
       const signature = this.generateSignature({}, timestamp);
 
-      const response = await axios.get(`${this.baseUrl}/api/v1/bvn/${id}`, {
+      const response = await axios.post(`${this.baseUrl}/api/v1/bvn/verify`, {
+        id,
+        mode,
+        purpose,
+        consent: true
+      }, {
         headers: { 
           'x-client-id': this.clientId,
           'x-timestamp': timestamp,
@@ -32,7 +37,11 @@ class BVNProvider {
     } catch (error) {
       if (error.response) {
         if (error.response.status === 404) return null;
-        throw new Error(`Gov Provider Error: ${error.response.data.message || error.response.statusText}`);
+        
+        const customError = new Error(error.response.data.message || error.response.statusText);
+        customError.statusCode = error.response.status;
+        customError.code = error.response.data.code;
+        throw customError;
       }
       throw new Error(`BVN Verification failed: ${error.message}`);
     }
