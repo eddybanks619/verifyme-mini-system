@@ -1,12 +1,12 @@
 const mongoose = require('mongoose');
 
 const ninSchema = new mongoose.Schema({
-  nin: { type: String, required: true, unique: true, length: 11 },
-  firstName: { type: String, required: true },
-  lastName: { type: String, required: true },
+  nin: { type: String, required: true, unique: true , length: 11},
+  firstName: { type: String },
+  lastName: { type: String },
   middleName: { type: String },
-  dateOfBirth: { type: Date, required: true },
-  gender: { type: String, enum: ['M', 'F'] },
+  dateOfBirth: { type: Date },
+  gender: { type: String },
   address: { type: String },
   phone: { type: String },
   image: { type: String },

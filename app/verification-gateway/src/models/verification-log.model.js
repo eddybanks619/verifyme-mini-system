@@ -2,17 +2,14 @@ const mongoose = require('mongoose');
 
 const verificationLogSchema = new mongoose.Schema({
   verificationType: {
-    type: String,
-    required: true,
-    enum: ['NIN', 'BVN', 'PASSPORT', 'DRIVERS_LICENSE']
+    type: String
+    // Removed enum to allow flexibility for future types
   },
   searchId: {
-    type: String,
-    required: true
+    type: String
   },
   status: {
     type: String,
-    enum: ['SUCCESS', 'FAILED', 'NOT_FOUND'],
     default: 'SUCCESS'
   },
   provider: {
@@ -20,7 +17,7 @@ const verificationLogSchema = new mongoose.Schema({
     default: 'GOV_PROVIDER'
   },
   responsePayload: {
-    type: Object
+    type: mongoose.Schema.Types.Mixed // Allows any structure
   },
   errorMessage: {
     type: String
@@ -29,6 +26,6 @@ const verificationLogSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
-});
+}, { strict: false }); // Allow other fields to be saved if needed
 
 module.exports = mongoose.model('VerificationLog', verificationLogSchema);

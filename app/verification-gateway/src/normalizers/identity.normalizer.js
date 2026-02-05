@@ -17,9 +17,26 @@ class IdentityNormalizer {
   }
 
   async imageToBase64(url) {
-    if (!url) return null;
+    if (!url || typeof url !== 'string') return null;
+
+    // Validate URL format
     try {
-      const response = await axios.get(url, { responseType: 'arraybuffer' });
+      const parsedUrl = new URL(url);
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        console.warn(`Skipping image conversion: Invalid protocol ${parsedUrl.protocol}`);
+        return null;
+      }
+    } catch (e) {
+      console.warn(`Skipping image conversion: Invalid URL format - ${url}`);
+      return null;
+    }
+
+    try {
+      const response = await axios.get(url, { 
+        responseType: 'arraybuffer',
+        timeout: 5000 // Add timeout to prevent hanging
+      });
+
       const base64 = Buffer.from(response.data, 'binary').toString('base64');
       const mimeType = response.headers['content-type'];
       return `data:${mimeType};base64,${base64}`;
@@ -35,8 +52,8 @@ class IdentityNormalizer {
 
   async normalize(type, data) {
     const base = {
-      firstName: data.firstName || null,
-      lastName: data.lastName || null,
+      firstName: data.firstName,
+      lastName: data.lastName,
       dateOfBirth: this.formatDate(data.dateOfBirth),
       verifiedAt: this.formatDate(new Date()),
       verificationType: type,
@@ -47,42 +64,42 @@ class IdentityNormalizer {
     switch (type) {
       case 'NIN':
         specific = {
-          idNumber: data.nin || null,
-          middleName: data.middleName || null,
+          idNumber: data.nin,
+          middleName: data.middleName,
           gender: this.formatGender(data.gender),
-          phone: data.phone || null,
-          address: data.address || null,
+          phone: data.phone,
+          address: data.address,
           photo: await this.imageToBase64(data.image)
         };
         break;
 
       case 'BVN':
         specific = {
-          idNumber: data.bvn || null,
-          middleName: data.middleName || null,
-          phone: data.phone || null,
-          enrollmentBank: data.enrollmentBank || null,
+          idNumber: data.bvn,
+          middleName: data.middleName,
+          phone: data.phone,
+          enrollmentBank: data.enrollmentBank,
           photo: await this.imageToBase64(data.image)
         };
         break;
 
       case 'PASSPORT':
         specific = {
-          idNumber: data.passportNumber || null,
+          idNumber: data.passportNumber,
           expiryDate: this.formatDate(data.expiryDate),
           issueDate: this.formatDate(data.issueDate),
-          nationality: data.nationality || null,
+          nationality: data.nationality,
           photo: null
         };
         break;
 
       case 'DRIVERS_LICENSE':
         specific = {
-          idNumber: data.licenseNumber || null,
+          idNumber: data.licenseNumber,
           expiryDate: this.formatDate(data.expiryDate),
           issuedDate: this.formatDate(data.issuedDate),
-          class: data.class || null,
-          stateOfIssue: data.stateOfIssue || null,
+          class: data.class,
+          stateOfIssue: data.stateOfIssue,
           photo: null
         };
         break;

@@ -2,13 +2,13 @@ const mongoose = require('mongoose');
 
 const passportSchema = new mongoose.Schema({
   passportNumber: { type: String, required: true, unique: true },
-  firstName: { type: String, required: true },
-  lastName: { type: String, required: true },
-  dateOfBirth: { type: Date, required: true },
-  photo: { type: String },
-  expiryDate: { type: Date, required: true },
-  issueDate: { type: Date, required: true },
+  firstName: { type: String },
+  lastName: { type: String },
+  dateOfBirth: { type: Date },
+  expiryDate: { type: Date },
+  issueDate: { type: Date },
   nationality: { type: String, default: 'Nigerian' },
+  image: { type: String },
   createdAt: { type: Date, default: Date.now }
 });
 

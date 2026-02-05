@@ -1,0 +1,7 @@
+const express = require('express');
+const router = express.Router();
+const auditController = require('../../modules/audit/audit.controller');
+
+router.get('/logs', auditController.getOrganizationLogs);
+
+module.exports = router;

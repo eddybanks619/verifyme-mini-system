@@ -1,44 +1,17 @@
-const DriversLicense = require('./dl.model');
-const { maskData } = require('../../privacy/masking.util');
-const AuditLog = require('../../models/AuditLog.model');
+const dlService = require('./dl.service');
 
 exports.verifyDL = async (req, res) => {
   const { id, mode, purpose } = req.body;
   const organization = req.organization;
-  let status = 'FAILED';
-  let fieldsAccessed = [];
 
   try {
-    const record = await DriversLicense.findOne({ licenseNumber: id });
+    const result = await dlService.verify(id, mode, purpose, organization);
     
-    if (!record) {
-      status = 'NOT_FOUND';
-      await AuditLog.create({
-        organizationId: organization._id,
-        verificationType: 'DRIVERS_LICENSE',
-        searchId: id,
-        purpose,
-        mode,
-        status
-      });
+    if (!result.found) {
       return res.status(404).json({ code: 'NOT_FOUND', message: 'Drivers License not found' });
     }
     
-    const responseData = maskData(record, mode);
-    status = 'SUCCESS';
-    fieldsAccessed = Object.keys(responseData);
-
-    await AuditLog.create({
-      organizationId: organization._id,
-      verificationType: 'DRIVERS_LICENSE',
-      searchId: id,
-      purpose,
-      mode,
-      status,
-      fieldsAccessed
-    });
-
-    res.json({ status: 'success', data: responseData });
+    res.json({ status: 'success', data: result.data });
   } catch (error) {
     console.error(error);
     res.status(500).json({ code: 'SERVER_ERROR', message: error.message });

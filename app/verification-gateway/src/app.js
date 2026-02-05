@@ -2,11 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-
-const verificationController = require('./modules/verification/verification.controller');
-const auditController = require('./modules/audit/audit.controller');
-const validate = require('./middlewares/validate.middleware');
-const { verifySchema } = require('./modules/verification/verification.schema');
+const routes = require('./routes');
 
 const app = express();
 
@@ -19,10 +15,7 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'UP', service: 'Verification Gateway' });
 });
 
-// Verification Endpoint
-app.post('/api/v1/verify', validate(verifySchema), verificationController.verifyIdentity);
-
-// History/Audit Endpoint
-app.get('/api/v1/history', auditController.getVerificationHistory);
+// Mount API routes
+app.use('/api', routes);
 
 module.exports = app;
