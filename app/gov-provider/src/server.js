@@ -12,7 +12,7 @@ mongoose.connect(MONGO_URI)
     await seedData();
     app.listen(PORT, () => {
       console.log(`Gov Provider Service running on port ${PORT}`);
-      process.exit(1)
+      //process.exit(1)
     });
   })
   .catch(err => {
