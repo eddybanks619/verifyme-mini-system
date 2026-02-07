@@ -1,4 +1,4 @@
-const verificationService = require('./verification.service');
+const verificationService = require('../service/verification.service');
 
 exports.verifyIdentity = async (req, res) => {
   const { type, id, mode, purpose } = req.body;

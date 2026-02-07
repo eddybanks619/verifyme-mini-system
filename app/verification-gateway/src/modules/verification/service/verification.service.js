@@ -1,9 +1,9 @@
-const ninProvider = require('../../providers/gov/nin.provider');
-const bvnProvider = require('../../providers/gov/bvn.provider');
-const passportProvider = require('../../providers/gov/passport.provider');
-const dlProvider = require('../../providers/gov/dl.provider');
-const normalizer = require('../../normalizers/identity.normalizer');
-const VerificationLog = require('../../models/verification-log.model');
+const ninProvider = require('../../../providers/gov/nin.provider');
+const bvnProvider = require('../../../providers/gov/bvn.provider');
+const passportProvider = require('../../../providers/gov/passport.provider');
+const dlProvider = require('../../../providers/gov/dl.provider');
+const normalizer = require('../../../normalizers/identity.normalizer');
+const VerificationLog = require('../../../models/verification-log.model');
 
 class VerificationService {
   async verifyIdentity(type, id, mode, purpose) {
