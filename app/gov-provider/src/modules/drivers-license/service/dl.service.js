@@ -1,15 +1,15 @@
-const Passport = require('./passport.model');
-const { maskData } = require('../../privacy/masking.util');
-const AuditLog = require('../../models/AuditLog.model');
+const DriversLicense = require('../data/dl.model');
+const { maskData } = require('../../../privacy/masking.util');
+const AuditLog = require('../../../models/AuditLog.model');
 
-class PassportService {
+class DLService {
   async verify(id, mode, purpose, organization) {
     let status = 'FAILED';
     let fieldsAccessed = [];
     let responseData = null;
 
     try {
-      const record = await Passport.findOne({ passportNumber: id });
+      const record = await DriversLicense.findOne({ licenseNumber: id });
 
       if (!record) {
         status = 'NOT_FOUND';
@@ -32,7 +32,7 @@ class PassportService {
   async logAudit(organizationId, searchId, purpose, mode, status, fieldsAccessed) {
     return AuditLog.create({
       organizationId,
-      verificationType: 'PASSPORT',
+      verificationType: 'DRIVERS_LICENSE',
       searchId,
       purpose,
       mode,
@@ -42,4 +42,4 @@ class PassportService {
   }
 }
 
-module.exports = new PassportService();
+module.exports = new DLService();

@@ -1,14 +1,14 @@
-const dlService = require('./dl.service');
+const bvnService = require('../service/bvn.service');
 
-exports.verifyDL = async (req, res) => {
+exports.verifyBVN = async (req, res) => {
   const { id, mode, purpose } = req.body;
   const organization = req.organization;
 
   try {
-    const result = await dlService.verify(id, mode, purpose, organization);
+    const result = await bvnService.verify(id, mode, purpose, organization);
     
     if (!result.found) {
-      return res.status(404).json({ code: 'NOT_FOUND', message: 'Drivers License not found' });
+      return res.status(404).json({ code: 'NOT_FOUND', message: 'BVN not found' });
     }
     
     res.json({ status: 'success', data: result.data });

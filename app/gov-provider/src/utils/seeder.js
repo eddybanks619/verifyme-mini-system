@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
-const NIN = require('../modules/nin/nin.model');
-const BVN = require('../modules/bvn/bvn.model');
-const Passport = require('../modules/passport/passport.model');
-const DriversLicense = require('../modules/drivers-license/dl.model');
+const NIN = require('../modules/nin/data/nin.model');
+const BVN = require('../modules/bvn/data/bvn.model');
+const Passport = require('../modules/passport/data/passport.model');
+const DriversLicense = require('../modules/drivers-license/data/dl.model');
 const Organization = require('../models/Organization.model');
 
 const seedData = async () => {

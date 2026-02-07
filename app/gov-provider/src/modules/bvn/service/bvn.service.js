@@ -1,6 +1,6 @@
-const BVN = require('./bvn.model');
-const { maskData } = require('../../privacy/masking.util');
-const AuditLog = require('../../models/AuditLog.model');
+const BVN = require('../data/bvn.model');
+const { maskData } = require('../../../privacy/masking.util');
+const AuditLog = require('../../../models/AuditLog.model');
 
 class BVNService {
   async verify(id, mode, purpose, organization) {

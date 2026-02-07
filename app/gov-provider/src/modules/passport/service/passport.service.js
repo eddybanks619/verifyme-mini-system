@@ -1,15 +1,15 @@
-const NIN = require('./nin.model');
-const { maskData } = require('../../privacy/masking.util');
-const AuditLog = require('../../models/AuditLog.model');
+const Passport = require('../data/passport.model');
+const { maskData } = require('../../../privacy/masking.util');
+const AuditLog = require('../../../models/AuditLog.model');
 
-class NINService {
+class PassportService {
   async verify(id, mode, purpose, organization) {
     let status = 'FAILED';
     let fieldsAccessed = [];
     let responseData = null;
 
     try {
-      const record = await NIN.findOne({ nin: id });
+      const record = await Passport.findOne({ passportNumber: id });
 
       if (!record) {
         status = 'NOT_FOUND';
@@ -32,7 +32,7 @@ class NINService {
   async logAudit(organizationId, searchId, purpose, mode, status, fieldsAccessed) {
     return AuditLog.create({
       organizationId,
-      verificationType: 'NIN',
+      verificationType: 'PASSPORT',
       searchId,
       purpose,
       mode,
@@ -42,4 +42,4 @@ class NINService {
   }
 }
 
-module.exports = new NINService();
+module.exports = new PassportService();

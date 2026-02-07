@@ -1,14 +1,14 @@
-const bvnService = require('./bvn.service');
+const ninService = require('../service/nin.service');
 
-exports.verifyBVN = async (req, res) => {
+exports.verifyNIN = async (req, res) => {
   const { id, mode, purpose } = req.body;
   const organization = req.organization;
 
   try {
-    const result = await bvnService.verify(id, mode, purpose, organization);
+    const result = await ninService.verify(id, mode, purpose, organization);
     
     if (!result.found) {
-      return res.status(404).json({ code: 'NOT_FOUND', message: 'BVN not found' });
+      return res.status(404).json({ code: 'NOT_FOUND', message: 'NIN not found' });
     }
     
     res.json({ status: 'success', data: result.data });

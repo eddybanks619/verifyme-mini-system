@@ -1,15 +1,15 @@
-const DriversLicense = require('./dl.model');
-const { maskData } = require('../../privacy/masking.util');
-const AuditLog = require('../../models/AuditLog.model');
+const NIN = require('../data/nin.model');
+const { maskData } = require('../../../privacy/masking.util');
+const AuditLog = require('../../../models/AuditLog.model');
 
-class DLService {
+class NINService {
   async verify(id, mode, purpose, organization) {
     let status = 'FAILED';
     let fieldsAccessed = [];
     let responseData = null;
 
     try {
-      const record = await DriversLicense.findOne({ licenseNumber: id });
+      const record = await NIN.findOne({ nin: id });
 
       if (!record) {
         status = 'NOT_FOUND';
@@ -32,7 +32,7 @@ class DLService {
   async logAudit(organizationId, searchId, purpose, mode, status, fieldsAccessed) {
     return AuditLog.create({
       organizationId,
-      verificationType: 'DRIVERS_LICENSE',
+      verificationType: 'NIN',
       searchId,
       purpose,
       mode,
@@ -42,4 +42,4 @@ class DLService {
   }
 }
 
-module.exports = new DLService();
+module.exports = new NINService();

@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 
-const ninController = require('../../modules/nin/nin.controller');
-const bvnController = require('../../modules/bvn/bvn.controller');
-const passportController = require('../../modules/passport/passport.controller');
-const dlController = require('../../modules/drivers-license/dl.controller');
+const ninController = require('../../modules/nin/controller/nin.controller');
+const bvnController = require('../../modules/bvn/controller/bvn.controller');
+const passportController = require('../../modules/passport/controller/passport.controller');
+const dlController = require('../../modules/drivers-license/controller/dl.controller');
 
 const authorize = require('../../middlewares/authorize.middleware');
 const validatePrivacy = require('../../middlewares/validatePrivacy.middleware');

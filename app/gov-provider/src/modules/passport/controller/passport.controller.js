@@ -1,4 +1,4 @@
-const passportService = require('./passport.service');
+const passportService = require('../service/passport.service');
 
 exports.verifyPassport = async (req, res) => {
   const { id, mode, purpose } = req.body;
