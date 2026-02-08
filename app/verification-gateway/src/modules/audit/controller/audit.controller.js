@@ -1,4 +1,4 @@
-const auditService = require('./audit.service');
+const auditService = require('../service/audit.service');
 
 exports.getVerificationHistory = async (req, res) => {
   try {

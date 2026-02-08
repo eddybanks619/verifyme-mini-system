@@ -1,4 +1,4 @@
-const AuditLog = require('../../models/AuditLog.model');
+const AuditLog = require('../../../models/AuditLog.model');
 
 class AuditService {
   async getLogs(organizationId, page = 1, limit = 20) {

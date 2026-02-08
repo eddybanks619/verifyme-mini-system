@@ -1,4 +1,4 @@
-const VerificationLog = require('../../models/verification-log.model');
+const VerificationLog = require('../../../models/verification-log.model');
 const moment = require('moment');
 
 class AuditService {
