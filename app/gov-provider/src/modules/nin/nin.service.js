@@ -1,13 +1,14 @@
-const BVN = require('./bvn.model');
-const { maskData } = require('../../../privacy/masking.util');
-const AuditLog = require('../../../models/AuditLog.model');
-const billingService = require('../billing/billing.service');
+const NIN = require('./nin.model');
+const { maskData } = require('../../privacy/masking.util');
+const AuditLog = require('../../models/AuditLog.model');
+const billingService = require('../billing/service/billing.service');
 
-class BVNService {
+class NINService {
   async verify(id, mode, purpose, organization, idempotencyKey) {
+    // 1. Charge Wallet
     const billingResult = await billingService.chargeWallet(
       organization._id.toString(), 
-      'BVN', 
+      'NIN', 
       idempotencyKey
     );
 
@@ -20,8 +21,9 @@ class BVNService {
       throw new Error('Billing failed');
     }
 
+    // 2. Perform Verification
     try {
-      const record = await BVN.findOne({ bvn: id });
+      const record = await NIN.findOne({ nin: id });
 
       if (!record) {
         await this.logAudit(organization._id, id, purpose, mode, 'NOT_FOUND', []);
@@ -42,7 +44,7 @@ class BVNService {
   async logAudit(organizationId, searchId, purpose, mode, status, fieldsAccessed) {
     return AuditLog.create({
       organizationId,
-      verificationType: 'BVN',
+      verificationType: 'NIN',
       searchId,
       purpose,
       mode,
@@ -52,4 +54,4 @@ class BVNService {
   }
 }
 
-module.exports = new BVNService();
+module.exports = new NINService();

@@ -1,13 +1,13 @@
-const BVN = require('./bvn.model');
-const { maskData } = require('../../../privacy/masking.util');
-const AuditLog = require('../../../models/AuditLog.model');
-const billingService = require('../billing/billing.service');
+const DriversLicense = require('./dl.model');
+const { maskData } = require('../../privacy/masking.util');
+const AuditLog = require('../../models/AuditLog.model');
+const billingService = require('../billing/service/billing.service');
 
-class BVNService {
+class DLService {
   async verify(id, mode, purpose, organization, idempotencyKey) {
     const billingResult = await billingService.chargeWallet(
       organization._id.toString(), 
-      'BVN', 
+      'DRIVERS_LICENSE', 
       idempotencyKey
     );
 
@@ -21,7 +21,7 @@ class BVNService {
     }
 
     try {
-      const record = await BVN.findOne({ bvn: id });
+      const record = await DriversLicense.findOne({ licenseNumber: id });
 
       if (!record) {
         await this.logAudit(organization._id, id, purpose, mode, 'NOT_FOUND', []);
@@ -42,7 +42,7 @@ class BVNService {
   async logAudit(organizationId, searchId, purpose, mode, status, fieldsAccessed) {
     return AuditLog.create({
       organizationId,
-      verificationType: 'BVN',
+      verificationType: 'DRIVERS_LICENSE',
       searchId,
       purpose,
       mode,
@@ -52,4 +52,4 @@ class BVNService {
   }
 }
 
-module.exports = new BVNService();
+module.exports = new DLService();

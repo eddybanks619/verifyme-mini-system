@@ -34,7 +34,7 @@ class IdentityNormalizer {
     try {
       const response = await axios.get(url, { 
         responseType: 'arraybuffer',
-        timeout: 5000 // Add timeout to prevent hanging
+        timeout: 5000 // Add timeout to prevent hanging```````
       });
 
       const base64 = Buffer.from(response.data, 'binary').toString('base64');

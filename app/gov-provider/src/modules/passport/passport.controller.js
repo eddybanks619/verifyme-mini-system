@@ -1,15 +1,15 @@
-const bvnService = require('../service/bvn.service');
+const passportService = require('./passport.service');
 
-exports.verifyBVN = async (req, res) => {
+exports.verifyPassport = async (req, res) => {
   const { id, mode, purpose } = req.body;
   const organization = req.organization;
   const idempotencyKey = req.headers['x-idempotency-key'];
 
   try {
-    const result = await bvnService.verify(id, mode, purpose, organization, idempotencyKey);
+    const result = await passportService.verify(id, mode, purpose, organization, idempotencyKey);
     
     if (!result.found) {
-      return res.status(404).json({ code: 'NOT_FOUND', message: 'BVN not found' });
+      return res.status(404).json({ code: 'NOT_FOUND', message: 'Passport not found' });
     }
     
     res.json({ status: 'success', data: result.data });

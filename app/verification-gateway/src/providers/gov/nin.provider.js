@@ -20,6 +20,7 @@ class NINProvider {
     try {
       const timestamp = Date.now().toString();
       const signature = this.generateSignature({}, timestamp);
+      const idempotencyKey = crypto.randomUUID(); // Generate a unique key for this request
 
       const response = await axios.post(`${this.baseUrl}/api/v1/nin/verify`, {
         id,
@@ -30,7 +31,8 @@ class NINProvider {
         headers: { 
           'x-client-id': this.clientId,
           'x-timestamp': timestamp,
-          'x-signature': signature
+          'x-signature': signature,
+          'x-idempotency-key': idempotencyKey
         }
       });
       return response.data.data;
@@ -38,7 +40,6 @@ class NINProvider {
       if (error.response) {
         if (error.response.status === 404) return null;
         
-        // Propagate the specific error from the gov-provider
         const customError = new Error(error.response.data.message || error.response.statusText);
         customError.statusCode = error.response.status;
         customError.code = error.response.data.code;

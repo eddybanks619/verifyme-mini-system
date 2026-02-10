@@ -11,6 +11,28 @@ services:
     networks:
       - verifyme-network
 
+  postgres:
+    image: postgres:15-alpine
+    container_name: verifyme-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=gov_billing
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - verifyme-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: verifyme-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - verifyme-network
+
   gov-provider:
     build: ../app/gov-provider
     container_name: gov-provider
@@ -19,8 +41,12 @@ services:
     environment:
       - PORT=3001
       - MONGO_URI=${MONGO_URI_GOV}
+      - POSTGRES_URI=${POSTGRES_URI}
+      - REDIS_URL=${REDIS_URL}
     depends_on:
       - mongo
+      - postgres
+      - redis
     networks:
       - verifyme-network
 
@@ -41,9 +67,22 @@ services:
     networks:
       - verifyme-network
 
+  client-app:
+    build: ../app/client-app
+    container_name: client-app
+    ports:
+      - "3002:3000"
+    environment:
+      - REACT_APP_API_URL=${REACT_APP_API_URL}
+    depends_on:
+      - verification-gateway
+    networks:
+      - verifyme-network
+
 networks:
   verifyme-network:
     driver: bridge
 
 volumes:
   mongo-data:
+  postgres-data:

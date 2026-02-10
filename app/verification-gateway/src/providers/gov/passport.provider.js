@@ -20,6 +20,7 @@ class PassportProvider {
     try {
       const timestamp = Date.now().toString();
       const signature = this.generateSignature({}, timestamp);
+      const idempotencyKey = crypto.randomUUID();
 
       const response = await axios.post(`${this.baseUrl}/api/v1/passport/verify`, {
         id,
@@ -30,7 +31,8 @@ class PassportProvider {
         headers: { 
           'x-client-id': this.clientId,
           'x-timestamp': timestamp,
-          'x-signature': signature
+          'x-signature': signature,
+          'x-idempotency-key': idempotencyKey
         }
       });
       return response.data.data;

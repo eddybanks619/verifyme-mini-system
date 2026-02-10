@@ -1,15 +1,15 @@
-const bvnService = require('../service/bvn.service');
+const dlService = require('./dl.service');
 
-exports.verifyBVN = async (req, res) => {
+exports.verifyDL = async (req, res) => {
   const { id, mode, purpose } = req.body;
   const organization = req.organization;
   const idempotencyKey = req.headers['x-idempotency-key'];
 
   try {
-    const result = await bvnService.verify(id, mode, purpose, organization, idempotencyKey);
+    const result = await dlService.verify(id, mode, purpose, organization, idempotencyKey);
     
     if (!result.found) {
-      return res.status(404).json({ code: 'NOT_FOUND', message: 'BVN not found' });
+      return res.status(404).json({ code: 'NOT_FOUND', message: 'Drivers License not found' });
     }
     
     res.json({ status: 'success', data: result.data });
