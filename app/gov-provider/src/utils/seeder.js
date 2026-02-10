@@ -20,19 +20,25 @@ const seedData = async () => {
         nin: '11111111111',
         firstName: 'John',
         lastName: 'Doe',
-        image: unsplashImage,
+        middleName: 'Smith',
         dateOfBirth: new Date('1990-01-01'),
         gender: 'M',
-        phone: '08012345678',});
+        address: '123 Main St, City, State',
+        phone: '08012345678',
+        image: unsplashImage,
+        createdAt : new Date.now()
+       });
 
       await BVN.create({
         bvn: '22222222222',
         firstName: 'Jane',
         lastName: 'Doe',
+        middleName: 'Smith',
         dateOfBirth: new Date('1992-02-02'),
         phone: '08087654321',
         enrollmentBank: '033',
-        image: unsplashImage });
+        image: unsplashImage,
+        createdAt: new Date.now()});
 
       await Passport.create({
         passportNumber: 'A12345678',
@@ -40,7 +46,10 @@ const seedData = async () => {
         lastName: 'Smith',
         dateOfBirth: new Date('1985-05-15'),
         expiryDate: new Date('2030-05-14'),
-        issueDate: new Date('2020-05-15')
+        issueDate: new Date('2020-05-15'),
+        nationality: 'Nigerian',
+        image: unsplashImage,
+        createdAt: new Date.now()
       });
 
       await DriversLicense.create({
@@ -50,7 +59,10 @@ const seedData = async () => {
         dateOfBirth: new Date('1988-08-08'),
         expiryDate: new Date('2025-08-08'),
         issuedDate: new Date('2020-08-08'),
-        stateOfIssue: 'Lagos'});
+        class: 'C',
+        stateOfIssue: 'Lagos',
+        image: unsplashImage,
+        createdAt: new Date.now()});
     }
 
     // Seed Client Organization
