@@ -3,9 +3,10 @@ const dlService = require('../service/dl.service');
 exports.verifyDL = async (req, res) => {
   const { id, mode, purpose } = req.body;
   const organization = req.organization;
+  const idempotencyKey = req.headers['x-idempotency-key'];
 
   try {
-    const result = await dlService.verify(id, mode, purpose, organization);
+    const result = await dlService.verify(id, mode, purpose, organization, idempotencyKey);
     
     if (!result.found) {
       return res.status(404).json({ code: 'NOT_FOUND', message: 'Drivers License not found' });
@@ -14,6 +15,9 @@ exports.verifyDL = async (req, res) => {
     res.json({ status: 'success', data: result.data });
   } catch (error) {
     console.error(error);
+    if (error.code === 'BILLING402') {
+      return res.status(402).json({ code: 'BILLING402', message: error.message });
+    }
     res.status(500).json({ code: 'SERVER_ERROR', message: error.message });
   }
 };

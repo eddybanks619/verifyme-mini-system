@@ -1,27 +1,37 @@
-const DriversLicense = require('../data/dl.model');
+const DriversLicense = require('./dl.model');
 const { maskData } = require('../../../privacy/masking.util');
 const AuditLog = require('../../../models/AuditLog.model');
+const billingService = require('../../billing/service/billing.service');
 
 class DLService {
-  async verify(id, mode, purpose, organization) {
-    let status = 'FAILED';
-    let fieldsAccessed = [];
-    let responseData = null;
+  async verify(id, mode, purpose, organization, idempotencyKey) {
+    const billingResult = await billingService.chargeWallet(
+      organization._id.toString(), 
+      'DRIVERS_LICENSE', 
+      idempotencyKey
+    );
+
+    if (!billingResult.success) {
+      if (billingResult.error === 'INSUFFICIENT_FUNDS') {
+        const error = new Error('Insufficient funds');
+        error.code = 'BILLING402';
+        throw error;
+      }
+      throw new Error('Billing failed');
+    }
 
     try {
       const record = await DriversLicense.findOne({ licenseNumber: id });
 
       if (!record) {
-        status = 'NOT_FOUND';
-        await this.logAudit(organization._id, id, purpose, mode, status, []);
+        await this.logAudit(organization._id, id, purpose, mode, 'NOT_FOUND', []);
         return { found: false };
       }
 
-      responseData = maskData(record, mode);
-      status = 'FOUND';
-      fieldsAccessed = Object.keys(responseData);
+      const responseData = maskData(record, mode);
+      const fieldsAccessed = Object.keys(responseData);
 
-      await this.logAudit(organization._id, id, purpose, mode, status, fieldsAccessed);
+      await this.logAudit(organization._id, id, purpose, mode, 'SUCCESS', fieldsAccessed);
 
       return { found: true, data: responseData };
     } catch (error) {
