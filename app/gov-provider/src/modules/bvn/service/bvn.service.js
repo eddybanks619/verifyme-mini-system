@@ -13,7 +13,20 @@ class BVNService {
 
     if (!billingResult.success) {
       const error = new Error(billingResult.message || 'Billing failed');
-      error.code = billingResult.error === 'INSUFFICIENT_FUNDS' ? 'BILLING402' : 'BILLING500';
+      
+      switch (billingResult.error) {
+        case 'INSUFFICIENT_FUNDS':
+          error.code = 'BILLING402';
+          break;
+        case 'WALLET_SUSPENDED':
+          error.code = 'BILLING403';
+          break;
+        case 'WALLET_NOT_FOUND':
+          error.code = 'BILLING404';
+          break;
+        default:
+          error.code = 'BILLING500';
+      }
       throw error;
     }
 

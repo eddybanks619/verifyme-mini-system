@@ -18,15 +18,29 @@ class BillingService {
 
   async getBalance(organizationId) {
     const wallet = await Wallet.findOne({ where: { organizationId } });
-    if (!wallet) throw new Error('Wallet not found');
+    if (!wallet) {
+      const error = new Error('Wallet not found for this organization.');
+      error.code = 'BILLING404';
+      throw error;
+    }
     return wallet.balance;
   }
 
   async fundWallet(organizationId, amount, reference) {
+    if (amount <= 0) {
+      const error = new Error('Funding amount must be positive.');
+      error.code = 'BILLING400';
+      throw error;
+    }
+
     const t = await sequelize.transaction();
     try {
       const wallet = await Wallet.findOne({ where: { organizationId }, transaction: t, lock: t.LOCK.UPDATE });
-      if (!wallet) throw new Error('Wallet not found');
+      if (!wallet) {
+        const error = new Error('Wallet not found for this organization.');
+        error.code = 'BILLING404';
+        throw error;
+      }
 
       const balanceBefore = Number(wallet.balance);
       const balanceAfter = balanceBefore + Number(amount);
@@ -70,6 +84,9 @@ class BillingService {
       if (!clientWallet) {
         return { success: false, error: 'WALLET_NOT_FOUND', message: 'Client wallet does not exist.' };
       }
+      if (clientWallet.status === 'SUSPENDED') {
+        return { success: false, error: 'WALLET_SUSPENDED', message: 'Client wallet is suspended.' };
+      }
 
       const systemWallet = await Wallet.findOne({ where: { organizationId: SYSTEM_ORG_ID }, transaction: t, lock: t.LOCK.UPDATE });
       if (!systemWallet) throw new Error('System revenue wallet not found. Critical error.');
@@ -81,6 +98,7 @@ class BillingService {
       const clientBalanceBefore = Number(clientWallet.balance);
       const clientBalanceAfter = clientBalanceBefore - cost;
       await clientWallet.update({ balance: clientBalanceAfter }, { transaction: t });
+
       await Transaction.create({
         walletId: clientWallet.id,
         type: 'DEBIT',
@@ -94,6 +112,7 @@ class BillingService {
       const systemBalanceBefore = Number(systemWallet.balance);
       const systemBalanceAfter = systemBalanceBefore + cost;
       await systemWallet.update({ balance: systemBalanceAfter }, { transaction: t });
+
       await Transaction.create({
         walletId: systemWallet.id,
         type: 'CREDIT',
@@ -120,7 +139,11 @@ class BillingService {
 
   async getHistory(organizationId, page = 1, limit = 20) {
     const wallet = await Wallet.findOne({ where: { organizationId } });
-    if (!wallet) throw new Error('Wallet not found');
+    if (!wallet) {
+      const error = new Error('Wallet not found for this organization.');
+      error.code = 'BILLING404';
+      throw error;
+    }
 
     const offset = (page - 1) * limit;
     const { count, rows } = await Transaction.findAndCountAll({

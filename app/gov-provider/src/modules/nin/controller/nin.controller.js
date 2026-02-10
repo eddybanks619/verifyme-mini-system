@@ -15,9 +15,24 @@ exports.verifyNIN = async (req, res) => {
     res.json({ status: 'success', data: result.data });
   } catch (error) {
     console.error(error);
-    if (error.code === 'BILLING402') {
-      return res.status(402).json({ code: 'BILLING402', message: error.message });
+    
+    let statusCode = 500;
+    if (error.code) {
+      switch (error.code) {
+        case 'BILLING402':
+          statusCode = 402; // Payment Required
+          break;
+        case 'BILLING403':
+          statusCode = 403; // Forbidden
+          break;
+        case 'BILLING404':
+          statusCode = 404; // Not Found
+          break;
+        default:
+          statusCode = 500;
+      }
     }
-    res.status(500).json({ code: 'SERVER_ERROR', message: error.message });
+    
+    res.status(statusCode).json({ code: error.code || 'SERVER_ERROR', message: error.message });
   }
 };
