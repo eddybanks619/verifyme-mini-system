@@ -12,12 +12,9 @@ class PassportService {
     );
 
     if (!billingResult.success) {
-      if (billingResult.error === 'INSUFFICIENT_FUNDS') {
-        const error = new Error('Insufficient funds');
-        error.code = 'BILLING402';
-        throw error;
-      }
-      throw new Error('Billing failed');
+      const error = new Error(billingResult.message || 'Billing failed');
+      error.code = billingResult.error === 'INSUFFICIENT_FUNDS' ? 'BILLING402' : 'BILLING500';
+      throw error;
     }
 
     try {

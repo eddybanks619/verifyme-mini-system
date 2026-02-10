@@ -59,18 +59,25 @@ class BillingService {
     }
 
     const cost = PRICING[serviceType];
-    if (!cost) throw new Error(`Unknown service type: ${serviceType}`);
+    if (!cost) {
+      return { success: false, error: 'INVALID_SERVICE', message: `Unknown service type: ${serviceType}` };
+    }
 
     const t = await sequelize.transaction();
     try {
-      // Lock both wallets to prevent race conditions
       const clientWallet = await Wallet.findOne({ where: { organizationId }, transaction: t, lock: t.LOCK.UPDATE });
+      
+      if (!clientWallet) {
+        return { success: false, error: 'WALLET_NOT_FOUND', message: 'Client wallet does not exist.' };
+      }
+
       const systemWallet = await Wallet.findOne({ where: { organizationId: SYSTEM_ORG_ID }, transaction: t, lock: t.LOCK.UPDATE });
+      if (!systemWallet) throw new Error('System revenue wallet not found. Critical error.');
 
-      if (!clientWallet || !systemWallet) throw new Error('Wallet not found');
-      if (Number(clientWallet.balance) < cost) throw new Error('INSUFFICIENT_FUNDS');
+      if (Number(clientWallet.balance) < cost) {
+        return { success: false, error: 'INSUFFICIENT_FUNDS', message: 'Insufficient funds for this transaction.' };
+      }
 
-      // Debit Client
       const clientBalanceBefore = Number(clientWallet.balance);
       const clientBalanceAfter = clientBalanceBefore - cost;
       await clientWallet.update({ balance: clientBalanceAfter }, { transaction: t });
@@ -84,7 +91,6 @@ class BillingService {
         reference: idempotencyKey,
       }, { transaction: t });
 
-      // Credit System
       const systemBalanceBefore = Number(systemWallet.balance);
       const systemBalanceAfter = systemBalanceBefore + cost;
       await systemWallet.update({ balance: systemBalanceAfter }, { transaction: t });
@@ -108,9 +114,6 @@ class BillingService {
 
     } catch (error) {
       await t.rollback();
-      if (error.message === 'INSUFFICIENT_FUNDS') {
-        return { success: false, error: 'INSUFFICIENT_FUNDS' };
-      }
       throw error;
     }
   }

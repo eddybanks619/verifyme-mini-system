@@ -5,7 +5,6 @@ const billingService = require('../../billing/service/billing.service');
 
 class NINService {
   async verify(id, mode, purpose, organization, idempotencyKey) {
-    // 1. Charge Wallet
     const billingResult = await billingService.chargeWallet(
       organization._id.toString(), 
       'NIN', 
@@ -13,15 +12,11 @@ class NINService {
     );
 
     if (!billingResult.success) {
-      if (billingResult.error === 'INSUFFICIENT_FUNDS') {
-        const error = new Error('Insufficient funds');
-        error.code = 'BILLING402';
-        throw error;
-      }
-      throw new Error('Billing failed');
+      const error = new Error(billingResult.message || 'Billing failed');
+      error.code = billingResult.error === 'INSUFFICIENT_FUNDS' ? 'BILLING402' : 'BILLING500';
+      throw error;
     }
 
-    // 2. Perform Verification
     try {
       const record = await NIN.findOne({ nin: id });
 

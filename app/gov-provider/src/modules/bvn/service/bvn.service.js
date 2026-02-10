@@ -1,7 +1,7 @@
 const BVN = require('./bvn.model');
 const { maskData } = require('../../../privacy/masking.util');
 const AuditLog = require('../../../models/AuditLog.model');
-const billingService = require('../billing/billing.service');
+const billingService = require('../../billing/service/billing.service');
 
 class BVNService {
   async verify(id, mode, purpose, organization, idempotencyKey) {
@@ -12,12 +12,9 @@ class BVNService {
     );
 
     if (!billingResult.success) {
-      if (billingResult.error === 'INSUFFICIENT_FUNDS') {
-        const error = new Error('Insufficient funds');
-        error.code = 'BILLING402';
-        throw error;
-      }
-      throw new Error('Billing failed');
+      const error = new Error(billingResult.message || 'Billing failed');
+      error.code = billingResult.error === 'INSUFFICIENT_FUNDS' ? 'BILLING402' : 'BILLING500';
+      throw error;
     }
 
     try {
