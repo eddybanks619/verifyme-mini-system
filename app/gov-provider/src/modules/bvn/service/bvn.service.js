@@ -1,4 +1,4 @@
-const BVN = require('./bvn.model');
+const BVN = require('../data/bvn.model');
 const { maskData } = require('../../../privacy/masking.util');
 const AuditLog = require('../../../models/AuditLog.model');
 const billingService = require('../../billing/service/billing.service');

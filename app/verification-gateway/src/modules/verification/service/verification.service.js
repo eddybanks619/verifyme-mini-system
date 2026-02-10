@@ -4,9 +4,24 @@ const passportProvider = require('../../../providers/gov/passport.provider');
 const dlProvider = require('../../../providers/gov/dl.provider');
 const normalizer = require('../../../normalizers/identity.normalizer');
 const VerificationLog = require('../../../models/verification-log.model');
+const billingService = require('../../billing/service/billing.service');
 
 class VerificationService {
-  async verifyIdentity(type, id, mode, purpose) {
+  async verifyIdentity(type, id, mode, purpose, clientOrganization, idempotencyKey) {
+    // 1. Charge the gateway's client
+    const billingResult = await billingService.chargeWallet(
+      clientOrganization._id.toString(),
+      type.toUpperCase(),
+      idempotencyKey
+    );
+
+    if (!billingResult.success) {
+      const error = new Error(billingResult.message || 'Billing failed');
+      error.code = billingResult.error === 'INSUFFICIENT_FUNDS' ? 'BILLING402' : 'BILLING500';
+      throw error;
+    }
+
+    // 2. If client billing is successful, proceed to call the gov-provider
     let status = 'FAILED';
     let rawData = null;
     let normalizedData = null;
@@ -38,7 +53,7 @@ class VerificationService {
       }
 
       normalizedData = await normalizer.normalize(type.toUpperCase(), rawData);
-      status = 'SUCCESS';
+      status = 'FOUND';
 
       await this.logVerification(type, id, status, normalizedData, null);
 
@@ -46,9 +61,10 @@ class VerificationService {
 
     } catch (error) {
       errorMessage = error.message;
-      // Log the failure
+      // Log the failure before re-throwing
       await this.logVerification(type, id, status, null, errorMessage);
-      throw error; // Re-throw to be handled by controller
+      // Re-throw the error so the controller can handle the specific status code
+      throw error;
     }
   }
 

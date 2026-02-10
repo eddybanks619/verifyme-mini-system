@@ -1,17 +1,20 @@
 const crypto = require('crypto');
 
-const generateSignature = (payload, secret) => {
+// Now expects payload to be a string directly
+const generateSignature = (payloadString, secret) => {
   return crypto
     .createHmac('sha256', secret)
-    .update(JSON.stringify(payload))
+    .update(payloadString)
     .digest('hex');
 };
 
-const verifySignature = (payload, secret, signature) => {
-  const expectedSignature = generateSignature(payload, secret);
+// Now expects payload to be a string directly
+const verifySignature = (payloadString, secret, signature) => {
+  const expectedSignature = generateSignature(payloadString, secret);
+  // Use crypto.timingSafeEqual to prevent timing attacks
   return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expectedSignature)
+    Buffer.from(signature, 'hex'), // Ensure signature is treated as hex
+    Buffer.from(expectedSignature, 'hex') // Ensure expectedSignature is treated as hex
   );
 };
 

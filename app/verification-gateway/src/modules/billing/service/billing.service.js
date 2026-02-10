@@ -4,18 +4,10 @@ const Wallet = require('../data/models/wallet.model');
 const Transaction = require('../data/models/transaction.model');
 const PRICING = require('../../../config/pricing');
 
-const SYSTEM_ORG_ID = '00000000-0000-0000-0000-000000000000';
+const GATEWAY_SYSTEM_ORG_ID = '00000000-0000-0000-0000-000000000000';
 
 class BillingService {
   
-  async findOrCreateWallet(organizationId) {
-    const [wallet, created] = await Wallet.findOrCreate({
-      where: { organizationId },
-      defaults: { organizationId }
-    });
-    return { wallet, created };
-  }
-
   async getBalance(organizationId) {
     const wallet = await Wallet.findOne({ where: { organizationId } });
     if (!wallet) {
@@ -68,7 +60,7 @@ class BillingService {
 
   async chargeWallet(organizationId, serviceType, idempotencyKey) {
     if (idempotencyKey) {
-      const cachedResult = await redisClient.get(`billing:${idempotencyKey}`);
+      const cachedResult = await redisClient.get(`gateway:billing:${idempotencyKey}`);
       if (cachedResult) return JSON.parse(cachedResult);
     }
 
@@ -88,8 +80,8 @@ class BillingService {
         return { success: false, error: 'WALLET_SUSPENDED', message: 'Client wallet is suspended.' };
       }
 
-      const systemWallet = await Wallet.findOne({ where: { organizationId: SYSTEM_ORG_ID }, transaction: t, lock: t.LOCK.UPDATE });
-      if (!systemWallet) throw new Error('System revenue wallet not found. Critical error.');
+      const systemWallet = await Wallet.findOne({ where: { organizationId: GATEWAY_SYSTEM_ORG_ID }, transaction: t, lock: t.LOCK.UPDATE });
+      if (!systemWallet) throw new Error('Gateway system revenue wallet not found. Critical error.');
 
       if (Number(clientWallet.balance) < cost) {
         return { success: false, error: 'INSUFFICIENT_FUNDS', message: 'Insufficient funds for this transaction.' };
@@ -98,7 +90,6 @@ class BillingService {
       const clientBalanceBefore = Number(clientWallet.balance);
       const clientBalanceAfter = clientBalanceBefore - cost;
       await clientWallet.update({ balance: clientBalanceAfter }, { transaction: t });
-
       await Transaction.create({
         walletId: clientWallet.id,
         type: 'DEBIT',
@@ -112,7 +103,6 @@ class BillingService {
       const systemBalanceBefore = Number(systemWallet.balance);
       const systemBalanceAfter = systemBalanceBefore + cost;
       await systemWallet.update({ balance: systemBalanceAfter }, { transaction: t });
-
       await Transaction.create({
         walletId: systemWallet.id,
         type: 'CREDIT',
@@ -127,7 +117,7 @@ class BillingService {
 
       const result = { success: true, cost, newBalance: clientBalanceAfter };
       if (idempotencyKey) {
-        await redisClient.set(`billing:${idempotencyKey}`, JSON.stringify(result), { EX: 86400 });
+        await redisClient.set(`gateway:billing:${idempotencyKey}`, JSON.stringify(result), { EX: 86400 });
       }
       return result;
 

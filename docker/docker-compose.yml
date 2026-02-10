@@ -11,9 +11,9 @@ services:
     networks:
       - verifyme-network
 
-  postgres:
+  gov-postgres:
     image: postgres:15-alpine
-    container_name: verifyme-postgres
+    container_name: gov-postgres
     ports:
       - "5432:5432"
     environment:
@@ -21,13 +21,13 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=gov_billing
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - gov-postgres-data:/var/lib/postgresql/data
     networks:
       - verifyme-network
 
-  redis:
+  gov-redis:
     image: redis:7-alpine
-    container_name: verifyme-redis
+    container_name: gov-redis
     ports:
       - "6379:6379"
     networks:
@@ -41,12 +41,34 @@ services:
     environment:
       - PORT=3001
       - MONGO_URI=${MONGO_URI_GOV}
-      - POSTGRES_URI=${POSTGRES_URI}
-      - REDIS_URL=${REDIS_URL}
+      - POSTGRES_URI=postgres://postgres:postgres@gov-postgres:5432/gov_billing
+      - REDIS_URL=redis://gov-redis:6379
     depends_on:
       - mongo
-      - postgres
-      - redis
+      - gov-postgres
+      - gov-redis
+    networks:
+      - verifyme-network
+
+  gateway-postgres:
+    image: postgres:15-alpine
+    container_name: gateway-postgres
+    ports:
+      - "5433:5432" # Use a different host port
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=gateway_billing
+    volumes:
+      - gateway-postgres-data:/var/lib/postgresql/data
+    networks:
+      - verifyme-network
+
+  gateway-redis:
+    image: redis:7-alpine
+    container_name: gateway-redis
+    ports:
+      - "6380:6379" # Use a different host port
     networks:
       - verifyme-network
 
@@ -61,21 +83,13 @@ services:
       - GOV_PROVIDER_URL=${GOV_PROVIDER_URL}
       - GOV_CLIENT_ID=${GOV_CLIENT_ID}
       - GOV_CLIENT_SECRET=${GOV_CLIENT_SECRET}
+      - POSTGRES_URI_GATEWAY=postgres://postgres:postgres@gateway-postgres:5432/gateway_billing
+      - REDIS_URL_GATEWAY=redis://gateway-redis:6379
     depends_on:
       - mongo
       - gov-provider
-    networks:
-      - verifyme-network
-
-  client-app:
-    build: ../app/client-app
-    container_name: client-app
-    ports:
-      - "3002:3000"
-    environment:
-      - REACT_APP_API_URL=${REACT_APP_API_URL}
-    depends_on:
-      - verification-gateway
+      - gateway-postgres
+      - gateway-redis
     networks:
       - verifyme-network
 
@@ -85,4 +99,5 @@ networks:
 
 volumes:
   mongo-data:
-  postgres-data:
+  gov-postgres-data:
+  gateway-postgres-data:

@@ -17,7 +17,7 @@ const Transaction = sequelize.define('Transaction', {
     }
   },
   type: {
-    type: DataTypes.STRING,
+    type: DataTypes.ENUM('CREDIT', 'DEBIT'),
     allowNull: false
   },
   amount: {
@@ -37,7 +37,7 @@ const Transaction = sequelize.define('Transaction', {
     allowNull: true
   },
   reference: {
-    type: DataTypes.STRING, // External ref (e.g., payment gateway ID) or Internal Request ID
+    type: DataTypes.STRING,
     allowNull: true
   },
   status: {
@@ -47,7 +47,7 @@ const Transaction = sequelize.define('Transaction', {
 }, {
   timestamps: true
 });
-// Associations
+
 Wallet.hasMany(Transaction, { foreignKey: 'walletId' });
 Transaction.belongsTo(Wallet, { foreignKey: 'walletId' });
 

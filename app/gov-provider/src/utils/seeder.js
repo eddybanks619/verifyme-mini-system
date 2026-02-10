@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
-const NIN = require('../modules/nin/nin.model');
-const BVN = require('../modules/bvn/bvn.model');
-const Passport = require('../modules/passport/passport.model');
-const DriversLicense = require('../modules/drivers-license/dl.model');
+const NIN = require('../modules/nin/data/nin.model');
+const BVN = require('../modules/bvn/data/bvn.model');
+const Passport = require('../modules/passport/data/passport.model');
+const DriversLicense = require('../modules/drivers-license/data/dl.model');
 const Organization = require('../models/Organization.model');
 const billingService = require('../modules/billing/service/billing.service');
 
@@ -26,7 +26,7 @@ const seedData = async () => {
         address: '123 Main St, City, State',
         phone: '08012345678',
         image: unsplashImage,
-        createdAt : new Date.now()
+        createdAt : new Date
        });
 
       await BVN.create({
@@ -38,7 +38,7 @@ const seedData = async () => {
         phone: '08087654321',
         enrollmentBank: '033',
         image: unsplashImage,
-        createdAt: new Date.now()});
+        createdAt: new Date});
 
       await Passport.create({
         passportNumber: 'A12345678',
@@ -49,7 +49,7 @@ const seedData = async () => {
         issueDate: new Date('2020-05-15'),
         nationality: 'Nigerian',
         image: unsplashImage,
-        createdAt: new Date.now()
+        createdAt: new Date
       });
 
       await DriversLicense.create({
@@ -62,7 +62,7 @@ const seedData = async () => {
         class: 'C',
         stateOfIssue: 'Lagos',
         image: unsplashImage,
-        createdAt: new Date.now()});
+        createdAt: new Date});
     }
 
     // Seed Client Organization

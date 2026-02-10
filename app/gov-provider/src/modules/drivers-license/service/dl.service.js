@@ -1,4 +1,4 @@
-const DriversLicense = require('./dl.model');
+const DriversLicense = require('../data/dl.model');
 const { maskData } = require('../../../privacy/masking.util');
 const AuditLog = require('../../../models/AuditLog.model');
 const billingService = require('../../billing/service/billing.service');

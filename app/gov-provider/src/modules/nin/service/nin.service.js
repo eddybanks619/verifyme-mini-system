@@ -1,4 +1,4 @@
-const NIN = require('./nin.model');
+const NIN = require('../data/nin.model');
 const { maskData } = require('../../../privacy/masking.util');
 const AuditLog = require('../../../models/AuditLog.model');
 const billingService = require('../../billing/service/billing.service');

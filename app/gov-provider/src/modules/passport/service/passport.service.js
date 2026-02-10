@@ -1,4 +1,4 @@
-const Passport = require('./passport.model');
+const Passport = require('../data/passport.model');
 const { maskData } = require('../../../privacy/masking.util');
 const AuditLog = require('../../../models/AuditLog.model');
 const billingService = require('../../billing/service/billing.service');

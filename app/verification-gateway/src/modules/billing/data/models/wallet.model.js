@@ -1,5 +1,5 @@
 const { DataTypes } = require('sequelize');
-const { sequelize } = require('../../../../config/database.js');
+const { sequelize } = require('../../../../config/database');
 
 const Wallet = sequelize.define('Wallet', {
   id: {
@@ -8,7 +8,7 @@ const Wallet = sequelize.define('Wallet', {
     primaryKey: true
   },
   organizationId: {
-    type: DataTypes.STRING, // Maps to MongoDB Organization._id (string representation)
+    type: DataTypes.STRING, // Maps to ClientOrganization._id
     allowNull: false,
     unique: true
   },
@@ -22,7 +22,7 @@ const Wallet = sequelize.define('Wallet', {
     defaultValue: 'NGN'
   },
   status: {
-    type: DataTypes.STRING,
+    type: DataTypes.ENUM('ACTIVE', 'SUSPENDED'),
     defaultValue: 'ACTIVE'
   }
 }, {
