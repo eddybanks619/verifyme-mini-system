@@ -7,7 +7,14 @@ const PRICING = require('../../../config/pricing');
 const GATEWAY_SYSTEM_ORG_ID = '00000000-0000-0000-0000-000000000000';
 
 class BillingService {
-  
+
+  async findOrCreateWallet(organizationId) {
+    const [wallet, created] = await Wallet.findOrCreate({
+      where: { organizationId },
+      defaults: { organizationId }
+    });
+    return { wallet, created };
+  }
   async getBalance(organizationId) {
     const wallet = await Wallet.findOne({ where: { organizationId } });
     if (!wallet) {

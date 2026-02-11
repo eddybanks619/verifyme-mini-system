@@ -8,26 +8,29 @@ class NINProvider {
     this.clientSecret = process.env.GOV_CLIENT_SECRET || 'gov-secret-key';
   }
 
-  generateSignature(payload, timestamp) {
-    const dataToSign = { clientId: this.clientId, timestamp };
+  // The gov-provider expects the signature to be generated from a string: "clientId.timestamp"
+  generateSignature(timestamp) {
+    const payloadString = `${this.clientId}.${timestamp}`;
     return crypto
       .createHmac('sha256', this.clientSecret)
-      .update(JSON.stringify(dataToSign))
+      .update(payloadString)
       .digest('hex');
   }
 
   async verify(id, mode = 'basic_identity', purpose = 'IDENTITY_VERIFICATION') {
     try {
       const timestamp = Date.now().toString();
-      const signature = this.generateSignature({}, timestamp);
-      const idempotencyKey = crypto.randomUUID(); // Generate a unique key for this request
-
-      const response = await axios.post(`${this.baseUrl}/api/v1/nin/verify`, {
+      const requestBody = {
         id,
         mode,
         purpose,
         consent: true
-      }, {
+      };
+      // Generate signature using only clientId and timestamp, as expected by gov-provider
+      const signature = this.generateSignature(timestamp);
+      const idempotencyKey = crypto.randomUUID(); // Generate a unique key for this request
+
+      const response = await axios.post(`${this.baseUrl}/api/v1/nin/verify`, requestBody, {
         headers: { 
           'x-client-id': this.clientId,
           'x-timestamp': timestamp,

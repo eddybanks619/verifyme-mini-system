@@ -8,18 +8,19 @@ class DLProvider {
     this.clientSecret = process.env.GOV_CLIENT_SECRET || 'gov-secret-key';
   }
 
-  generateSignature(payload, timestamp) {
-    const dataToSign = { clientId: this.clientId, timestamp };
+  // The gov-provider expects the signature to be generated from a string: "clientId.timestamp"
+  generateSignature(timestamp) {
+    const payloadString = `${this.clientId}.${timestamp}`;
     return crypto
-      .createHmac('sha256', this.clientSecret)
-      .update(JSON.stringify(dataToSign))
-      .digest('hex');
+        .createHmac('sha256', this.clientSecret)
+        .update(payloadString)
+        .digest('hex');
   }
 
   async verify(id, mode = 'basic_identity', purpose = 'IDENTITY_VERIFICATION') {
     try {
       const timestamp = Date.now().toString();
-      const signature = this.generateSignature({}, timestamp);
+      const signature = this.generateSignature(timestamp);
       const idempotencyKey = crypto.randomUUID();
 
       const response = await axios.post(`${this.baseUrl}/api/v1/drivers-license/verify`, {

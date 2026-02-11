@@ -54,7 +54,7 @@ services:
     image: postgres:15-alpine
     container_name: gateway-postgres
     ports:
-      - "5433:5432" # Use a different host port
+      - "5433:5432"
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
@@ -68,7 +68,7 @@ services:
     image: redis:7-alpine
     container_name: gateway-redis
     ports:
-      - "6380:6379" # Use a different host port
+      - "6380:6379"
     networks:
       - verifyme-network
 
@@ -83,8 +83,8 @@ services:
       - GOV_PROVIDER_URL=${GOV_PROVIDER_URL}
       - GOV_CLIENT_ID=${GOV_CLIENT_ID}
       - GOV_CLIENT_SECRET=${GOV_CLIENT_SECRET}
-      - POSTGRES_URI_GATEWAY=postgres://postgres:postgres@gateway-postgres:5432/gateway_billing
-      - REDIS_URL_GATEWAY=redis://gateway-redis:6379
+      - POSTGRES_URI_GATEWAY=${POSTGRES_URI_GATEWAY}
+      - REDIS_URL_GATEWAY=${REDIS_URL_GATEWAY}
     depends_on:
       - mongo
       - gov-provider
@@ -92,6 +92,7 @@ services:
       - gateway-redis
     networks:
       - verifyme-network
+
 
 networks:
   verifyme-network:
