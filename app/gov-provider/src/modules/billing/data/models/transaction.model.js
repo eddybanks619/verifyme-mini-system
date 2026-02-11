@@ -41,7 +41,7 @@ const Transaction = sequelize.define('Transaction', {
     allowNull: true
   },
   status: {
-    type: DataTypes.ENUM('SUCCESS', 'FAILED', 'PENDING'),
+    type: DataTypes.STRING,
     defaultValue: 'SUCCESS'
   }
 }, {
