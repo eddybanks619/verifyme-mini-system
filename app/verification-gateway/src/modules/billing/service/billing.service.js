@@ -25,7 +25,12 @@ class BillingService {
     return wallet.balance;
   }
 
-  async fundWallet(organizationId, amount, reference) {
+  async fundWallet(organizationId, amount, reference, idempotencyKey) {
+    if (idempotencyKey) {
+      const cachedResult = await redisClient.get(`gateway:billing:fund:${idempotencyKey}`);
+      if (cachedResult) return JSON.parse(cachedResult);
+    }
+
     if (amount <= 0) {
       const error = new Error('Funding amount must be positive.');
       error.code = 'BILLING400';
@@ -53,12 +58,18 @@ class BillingService {
         balanceBefore,
         balanceAfter,
         description: 'Wallet Funding',
-        reference,
+        reference: idempotencyKey || reference,
         status: 'SUCCESS'
       }, { transaction: t });
 
       await t.commit();
-      return { newBalance: balanceAfter };
+
+      const result = { newBalance: balanceAfter, reference: idempotencyKey || reference };
+      if (idempotencyKey) {
+        await redisClient.set(`gateway:billing:fund:${idempotencyKey}`, JSON.stringify(result), { EX: 86400 }); // 24 hours
+      }
+
+      return result;
     } catch (error) {
       await t.rollback();
       throw error;
@@ -88,7 +99,12 @@ class BillingService {
       }
 
       const systemWallet = await Wallet.findOne({ where: { organizationId: GATEWAY_SYSTEM_ORG_ID }, transaction: t, lock: t.LOCK.UPDATE });
-      if (!systemWallet) throw new Error('Gateway system revenue wallet not found. Critical error.');
+      if (!systemWallet) {
+        // This is a critical internal error. We'll throw a specific error to be caught below.
+        const criticalError = new Error('Gateway system revenue wallet not found. This is a critical configuration issue.');
+        criticalError.code = 'SYS_WALLET_MISSING';
+        throw criticalError;
+      }
 
       if (Number(clientWallet.balance) < cost) {
         return { success: false, error: 'INSUFFICIENT_FUNDS', message: 'Insufficient funds for this transaction.' };
@@ -130,6 +146,13 @@ class BillingService {
 
     } catch (error) {
       await t.rollback();
+      // Handle our specific critical error
+      if (error.code === 'SYS_WALLET_MISSING') {
+        console.error('CRITICAL: System revenue wallet is missing!', error);
+        // Return a structured error instead of throwing, to prevent a generic 500 response
+        return { success: false, error: 'SERVICE_UNAVAILABLE', message: 'The service is temporarily unavailable due to a configuration issue. Please try again later.' };
+      }
+      // Re-throw any other unexpected errors
       throw error;
     }
   }

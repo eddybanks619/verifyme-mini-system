@@ -3,9 +3,10 @@ const billingService = require('../service/billing.service');
 exports.fundWallet = async (req, res) => {
   try {
     const { amount, reference } = req.body;
+    const idempotencyKey = req.headers['x-idempotency-key'];
     const organizationId = req.clientOrganization._id.toString(); // From auth middleware
 
-    const result = await billingService.fundWallet(organizationId, amount, reference);
+    const result = await billingService.fundWallet(organizationId, amount, reference, idempotencyKey);
     res.json({ status: 'success', data: result });
   } catch (error) {
     console.error(error);

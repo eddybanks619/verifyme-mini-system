@@ -12,9 +12,10 @@ const getTestClientOrgId = async () => {
 exports.testFundWallet = async (req, res) => {
   try {
     const { amount, reference } = req.body;
+    const idempotencyKey = req.headers['x-idempotency-key'];
     const organizationId = await getTestClientOrgId();
 
-    const result = await billingService.fundWallet(organizationId, amount, reference || `TEST_FUND_${Date.now()}`);
+    const result = await billingService.fundWallet(organizationId, amount, reference || `TEST_FUND_${Date.now()}`, idempotencyKey);
     res.json({ status: 'success', data: result });
   } catch (error) {
     console.error(error);

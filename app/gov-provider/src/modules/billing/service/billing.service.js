@@ -26,7 +26,11 @@ class BillingService {
     return wallet.balance;
   }
 
-  async fundWallet(organizationId, amount, reference) {
+  async fundWallet(organizationId, amount, reference, idempotencyKey) {
+    if(idempotencyKey){
+      const cachedResult = await redisClient.get(`billing:fund:${idempotencyKey}`);
+      if (cachedResult) return JSON.parse(cachedResult);
+    }
     if (amount <= 0) {
       const error = new Error('Funding amount must be positive.');
       error.code = 'BILLING400';
@@ -54,12 +58,18 @@ class BillingService {
         balanceBefore,
         balanceAfter,
         description: 'Wallet Funding',
-        reference,
+        reference: idempotencyKey || reference,
         status: 'SUCCESS'
       }, { transaction: t });
 
       await t.commit();
-      return { newBalance: balanceAfter };
+      
+      const result = { newBalance: balanceAfter, reference: idempotencyKey || reference };
+      
+      if (idempotencyKey) {
+        await redisClient.set(`billing:fund:${idempotencyKey}`, JSON.stringify(result), { EX: 86400 });
+      }
+      return result;
     } catch (error) {
       await t.rollback();
       throw error;
@@ -89,7 +99,11 @@ class BillingService {
       }
 
       const systemWallet = await Wallet.findOne({ where: { organizationId: SYSTEM_ORG_ID }, transaction: t, lock: t.LOCK.UPDATE });
-      if (!systemWallet) throw new Error('System revenue wallet not found. Critical error.');
+      if (!systemWallet) {
+        const criticalError = new Error('System revenue wallet not found. This is a critical configuration issue.');
+        criticalError.code = 'SYS_WALLET_MISSING';
+        throw criticalError;
+      }
 
       if (Number(clientWallet.balance) < cost) {
         return { success: false, error: 'INSUFFICIENT_FUNDS', message: 'Insufficient funds for this transaction.' };
@@ -133,6 +147,10 @@ class BillingService {
 
     } catch (error) {
       await t.rollback();
+      if (error.code === 'SYS_WALLET_MISSING') {
+        console.error('CRITICAL: System revenue wallet is missing!', error);
+        return { success: false, error: 'SERVICE_UNAVAILABLE', message: 'The service is temporarily unavailable due to a configuration issue. Please try again later.' };
+      }
       throw error;
     }
   }
