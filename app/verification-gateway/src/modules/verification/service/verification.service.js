@@ -5,6 +5,7 @@ const dlProvider = require('../../../providers/gov/dl.provider');
 const normalizer = require('../../../normalizers/identity.normalizer');
 const VerificationLog = require('../../../models/verification-log.model');
 const billingService = require('../../billing/service/billing.service');
+const AppError = require('../../../utils/AppError');
 
 class VerificationService {
   async verifyIdentity(type, id, mode, purpose, clientOrganization, idempotencyKey) {
@@ -16,9 +17,28 @@ class VerificationService {
     );
 
     if (!billingResult.success) {
-      const error = new Error(billingResult.message || 'Billing failed');
-      error.code = billingResult.error === 'INSUFFICIENT_FUNDS' ? 'BILLING402' : 'BILLING500';
-      throw error;
+      let statusCode = 500;
+      let errorCode = 'BILLING500';
+
+      switch (billingResult.error) {
+        case 'INSUFFICIENT_FUNDS':
+          statusCode = 402;
+          errorCode = 'BILLING402';
+          break;
+        case 'WALLET_SUSPENDED':
+          statusCode = 403;
+          errorCode = 'BILLING403';
+          break;
+        case 'WALLET_NOT_FOUND':
+          statusCode = 404;
+          errorCode = 'BILLING404';
+          break;
+        default:
+          statusCode = 500;
+          errorCode = 'BILLING500';
+      }
+
+      throw new AppError(billingResult.message || 'Billing failed', statusCode, errorCode);
     }
 
     // 2. If client billing is successful, proceed to call the gov-provider
@@ -42,14 +62,14 @@ class VerificationService {
           rawData = await dlProvider.verify(id, mode, purpose);
           break;
         default:
-          throw new Error('Invalid verification type');
+          throw new AppError('Invalid verification type', 400, 'INVALID_TYPE');
       }
 
       if (!rawData) {
         status = 'NOT_FOUND';
         errorMessage = 'Identity not found';
         await this.logVerification(type, id, status, null, errorMessage);
-        return { success: false, code: 'NOT_FOUND', message: errorMessage };
+        throw new AppError(errorMessage, 404, 'NOT_FOUND');
       }
 
       normalizedData = await normalizer.normalize(type.toUpperCase(), rawData);

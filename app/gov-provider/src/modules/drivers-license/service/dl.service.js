@@ -2,6 +2,7 @@ const DriversLicense = require('../data/dl.model');
 const { maskData } = require('../../../privacy/masking.util');
 const AuditLog = require('../../../models/AuditLog.model');
 const billingService = require('../../billing/service/billing.service');
+const AppError = require('../../../utils/AppError');
 
 class DLService {
   async verify(id, mode, purpose, organization, idempotencyKey) {
@@ -12,22 +13,28 @@ class DLService {
     );
 
     if (!billingResult.success) {
-      const error = new Error(billingResult.message || 'Billing failed');
-      
+      let statusCode = 500;
+      let errorCode = 'BILLING500';
+
       switch (billingResult.error) {
         case 'INSUFFICIENT_FUNDS':
-          error.code = 'BILLING402';
+          statusCode = 402; // Payment Required
+          errorCode = 'BILLING402';
           break;
         case 'WALLET_SUSPENDED':
-          error.code = 'BILLING403';
+          statusCode = 403; // Forbidden
+          errorCode = 'BILLING403';
           break;
         case 'WALLET_NOT_FOUND':
-          error.code = 'BILLING404';
+          statusCode = 404; // Not Found
+          errorCode = 'BILLING404';
           break;
         default:
-          error.code = 'BILLING500';
+          statusCode = 500;
+          errorCode = 'BILLING500';
       }
-      throw error;
+
+      throw new AppError(billingResult.message || 'Billing failed', statusCode, errorCode);
     }
 
     try {
@@ -35,7 +42,7 @@ class DLService {
 
       if (!record) {
         await this.logAudit(organization._id, id, purpose, mode, 'NOT_FOUND', []);
-        return { found: false };
+        throw new AppError('Drivers License not found', 404, 'NOT_FOUND');
       }
 
       const responseData = maskData(record, mode);
