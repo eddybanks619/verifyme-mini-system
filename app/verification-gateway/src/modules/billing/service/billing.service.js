@@ -47,9 +47,12 @@ class BillingService {
       }
 
       const balanceBefore = Number(wallet.balance);
-      const balanceAfter = balanceBefore + Number(amount);
 
-      await wallet.update({ balance: balanceAfter }, { transaction: t });
+      // Use database-level increment for atomicity
+      await wallet.increment('balance', { by: amount, transaction: t });
+      await wallet.reload({ transaction: t });
+
+      const balanceAfter = Number(wallet.balance);
 
       await Transaction.create({
         walletId: wallet.id,
@@ -100,7 +103,6 @@ class BillingService {
 
       const systemWallet = await Wallet.findOne({ where: { organizationId: GATEWAY_SYSTEM_ORG_ID }, transaction: t, lock: t.LOCK.UPDATE });
       if (!systemWallet) {
-        // This is a critical internal error. We'll throw a specific error to be caught below.
         const criticalError = new Error('Gateway system revenue wallet not found. This is a critical configuration issue.');
         criticalError.code = 'SYS_WALLET_MISSING';
         throw criticalError;
@@ -111,8 +113,19 @@ class BillingService {
       }
 
       const clientBalanceBefore = Number(clientWallet.balance);
-      const clientBalanceAfter = clientBalanceBefore - cost;
-      await clientWallet.update({ balance: clientBalanceAfter }, { transaction: t });
+      const systemBalanceBefore = Number(systemWallet.balance);
+
+      // Atomic updates
+      await clientWallet.decrement('balance', { by: cost, transaction: t });
+      await systemWallet.increment('balance', { by: cost, transaction: t });
+
+      // Reload to get updated balances for transaction logs
+      await clientWallet.reload({ transaction: t });
+      await systemWallet.reload({ transaction: t });
+
+      const clientBalanceAfter = Number(clientWallet.balance);
+      const systemBalanceAfter = Number(systemWallet.balance);
+
       await Transaction.create({
         walletId: clientWallet.id,
         type: 'DEBIT',
@@ -123,9 +136,6 @@ class BillingService {
         reference: idempotencyKey,
       }, { transaction: t });
 
-      const systemBalanceBefore = Number(systemWallet.balance);
-      const systemBalanceAfter = systemBalanceBefore + cost;
-      await systemWallet.update({ balance: systemBalanceAfter }, { transaction: t });
       await Transaction.create({
         walletId: systemWallet.id,
         type: 'CREDIT',
@@ -146,13 +156,10 @@ class BillingService {
 
     } catch (error) {
       await t.rollback();
-      // Handle our specific critical error
       if (error.code === 'SYS_WALLET_MISSING') {
         console.error('CRITICAL: System revenue wallet is missing!', error);
-        // Return a structured error instead of throwing, to prevent a generic 500 response
         return { success: false, error: 'SERVICE_UNAVAILABLE', message: 'The service is temporarily unavailable due to a configuration issue. Please try again later.' };
       }
-      // Re-throw any other unexpected errors
       throw error;
     }
   }

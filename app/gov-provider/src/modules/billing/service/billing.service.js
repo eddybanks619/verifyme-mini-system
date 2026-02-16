@@ -47,9 +47,12 @@ class BillingService {
       }
 
       const balanceBefore = Number(wallet.balance);
-      const balanceAfter = balanceBefore + Number(amount);
-
-      await wallet.update({ balance: balanceAfter }, { transaction: t });
+      
+      // Use database-level increment for atomicity
+      await wallet.increment('balance', { by: amount, transaction: t });
+      await wallet.reload({ transaction: t });
+      
+      const balanceAfter = Number(wallet.balance);
 
       await Transaction.create({
         walletId: wallet.id,
@@ -110,8 +113,18 @@ class BillingService {
       }
 
       const clientBalanceBefore = Number(clientWallet.balance);
-      const clientBalanceAfter = clientBalanceBefore - cost;
-      await clientWallet.update({ balance: clientBalanceAfter }, { transaction: t });
+      const systemBalanceBefore = Number(systemWallet.balance);
+
+      // Atomic updates
+      await clientWallet.decrement('balance', { by: cost, transaction: t });
+      await systemWallet.increment('balance', { by: cost, transaction: t });
+
+      // Reload to get updated balances for transaction logs
+      await clientWallet.reload({ transaction: t });
+      await systemWallet.reload({ transaction: t });
+
+      const clientBalanceAfter = Number(clientWallet.balance);
+      const systemBalanceAfter = Number(systemWallet.balance);
 
       await Transaction.create({
         walletId: clientWallet.id,
@@ -122,10 +135,6 @@ class BillingService {
         description: `${serviceType} Verification`,
         reference: idempotencyKey,
       }, { transaction: t });
-
-      const systemBalanceBefore = Number(systemWallet.balance);
-      const systemBalanceAfter = systemBalanceBefore + cost;
-      await systemWallet.update({ balance: systemBalanceAfter }, { transaction: t });
 
       await Transaction.create({
         walletId: systemWallet.id,
