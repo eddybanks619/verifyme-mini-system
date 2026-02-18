@@ -9,7 +9,7 @@ const rateLimit = (endpointName, maxRequests = DEFAULT_MAX_REQUESTS) => {
     const clientId = req.headers['x-client-id'];
 
     if (!clientId) {
-      // If no client ID, we can't rate limit per client.
+      // If no client ID, we can't rate limit per client. 
       // Depending on requirements, we might skip or block.
       // For now, let's proceed but log a warning.
       console.warn('Rate Limit: No x-client-id header found. Skipping rate limit check.');

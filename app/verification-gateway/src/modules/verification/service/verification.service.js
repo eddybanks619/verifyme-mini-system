@@ -6,10 +6,27 @@ const normalizer = require('../../../normalizers/identity.normalizer');
 const VerificationLog = require('../../../models/verification-log.model');
 const billingService = require('../../billing/service/billing.service');
 const AppError = require('../../../utils/AppError');
+const { redisClient } = require('../../../config/redis');
+const crypto = require('crypto');
+
+const CACHE_TTL_SECONDS = 3600; // 1 hour
 
 class VerificationService {
   async verifyIdentity(type, id, mode, purpose, clientOrganization, idempotencyKey) {
-    // 1. Charge the gateway's client
+    // 1. Caching Layer
+    const cacheKey = this.generateCacheKey(type, id, mode);
+    try {
+      const cachedResult = await redisClient.get(cacheKey);
+      if (cachedResult) {
+        console.log(`[CACHE HIT] for key: ${cacheKey}`);
+        return { success: true, data: JSON.parse(cachedResult) };
+      }
+      console.log(`[CACHE MISS] for key: ${cacheKey}`);
+    } catch (redisError) {
+      console.error('Redis GET error (graceful degradation):', redisError);
+    }
+
+    // 2. Charge the gateway's client
     const billingResult = await billingService.chargeWallet(
       clientOrganization._id.toString(),
       type.toUpperCase(),
@@ -37,11 +54,11 @@ class VerificationService {
           statusCode = 500;
           errorCode = 'BILLING500';
       }
-
+      
       throw new AppError(billingResult.message || 'Billing failed', statusCode, errorCode);
     }
 
-    // 2. If client billing is successful, proceed to call the gov-provider
+    // 3. If client billing is successful, proceed to call the gov-provider
     let status = 'FAILED';
     let rawData = null;
     let normalizedData = null;
@@ -75,17 +92,27 @@ class VerificationService {
       normalizedData = await normalizer.normalize(type.toUpperCase(), rawData);
       status = 'FOUND';
 
+      // 4. Store successful result in cache
+      try {
+        await redisClient.set(cacheKey, JSON.stringify(normalizedData), { EX: CACHE_TTL_SECONDS });
+      } catch (redisError) {
+        console.error('Redis SET error (graceful degradation):', redisError);
+      }
+
       await this.logVerification(type, id, status, normalizedData, null);
 
       return { success: true, data: normalizedData };
 
     } catch (error) {
       errorMessage = error.message;
-      // Log the failure before re-throwing
       await this.logVerification(type, id, status, null, errorMessage);
-      // Re-throw the error so the controller can handle the specific status code
       throw error;
     }
+  }
+
+  generateCacheKey(type, id, mode) {
+    const hash = crypto.createHash('sha256').update(`${type}:${id}:${mode}`).digest('hex');
+    return `verification:${hash}`;
   }
 
   async logVerification(type, id, status, data, errorMessage) {

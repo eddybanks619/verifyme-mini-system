@@ -8,13 +8,14 @@ const dlController = require('../../modules/drivers-license/controller/dl.contro
 
 const authorize = require('../../middlewares/authorize.middleware');
 const validatePrivacy = require('../../middlewares/validatePrivacy.middleware');
+const rateLimit = require('../../middlewares/rateLimit.middleware');
 
 // Apply privacy validation to all identity routes
 router.use(validatePrivacy);
 
-router.post('/nin/verify', authorize('NIN'), ninController.verifyNIN);
-router.post('/bvn/verify', authorize('BVN'), bvnController.verifyBVN);
-router.post('/passport/verify', authorize('PASSPORT'), passportController.verifyPassport);
-router.post('/drivers-license/verify', authorize('DRIVERS_LICENSE'), dlController.verifyDL);
+router.post('/nin/verify', rateLimit('nin', 100), authorize('NIN'), ninController.verifyNIN);
+router.post('/bvn/verify', rateLimit('bvn', 100), authorize('BVN'), bvnController.verifyBVN);
+router.post('/passport/verify', rateLimit('passport', 100), authorize('PASSPORT'), passportController.verifyPassport);
+router.post('/drivers-license/verify', rateLimit('drivers-license', 100), authorize('DRIVERS_LICENSE'), dlController.verifyDL);
 
 module.exports = router;
