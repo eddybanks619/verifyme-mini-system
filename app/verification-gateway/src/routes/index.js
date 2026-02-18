@@ -8,6 +8,7 @@ const testClientRoutes = require('./v1/test-client/test-client.routes');
 const testBillingRoutes = require('./v1/test-client/test-billing.routes');
 
 const authenticateClient = require('../middlewares/authenticate.middleware');
+const rateLimiter = require('../middlewares/rateLimit.middleware');
 
 // Unauthenticated Test Routes (for Postman convenience)
 router.use('/v1/test-client', testClientRoutes);
@@ -15,6 +16,7 @@ router.use('/v1/test-billing', testBillingRoutes);
 
 // Apply client authentication to all other API routes
 router.use(authenticateClient);
+router.use(rateLimiter);
 
 router.use('/v1', verificationRoutes);
 router.use('/v1', auditRoutes);

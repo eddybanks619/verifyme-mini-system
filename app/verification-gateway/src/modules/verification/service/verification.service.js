@@ -7,6 +7,7 @@ const VerificationLog = require('../../../models/verification-log.model');
 const billingService = require('../../billing/service/billing.service');
 const AppError = require('../../../utils/AppError');
 const { redisClient } = require('../../../config/redis');
+const { incrementMetric } = require('../../../utils/metrics.util');
 const crypto = require('crypto');
 
 const CACHE_TTL_SECONDS = 3600; // 1 hour
@@ -19,11 +20,14 @@ class VerificationService {
       const cachedResult = await redisClient.get(cacheKey);
       if (cachedResult) {
         console.log(`[CACHE HIT] for key: ${cacheKey}`);
+        incrementMetric('hits');
         return { success: true, data: JSON.parse(cachedResult) };
       }
       console.log(`[CACHE MISS] for key: ${cacheKey}`);
+      incrementMetric('misses');
     } catch (redisError) {
       console.error('Redis GET error (graceful degradation):', redisError);
+      incrementMetric('misses');
     }
 
     // 2. Charge the gateway's client
