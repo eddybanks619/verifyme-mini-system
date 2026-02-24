@@ -10,18 +10,21 @@ const { redisClient } = require('../../../config/redis');
 const { incrementMetric } = require('../../../utils/metrics.util');
 const crypto = require('crypto');
 
-const CACHE_TTL_SECONDS = 3600; // 1 hour
+const CACHE_TTL_SECONDS = 3600;
 
 class VerificationService {
-  async verifyIdentity(type, id, mode, purpose, clientOrganization, idempotencyKey) {
-    // 1. Caching Layer
+
+  async processVerificationJob(jobData) {
+    const { logId, type, id, mode, purpose, clientOrganizationId, idempotencyKey } = jobData;
+
     const cacheKey = this.generateCacheKey(type, id, mode);
     try {
       const cachedResult = await redisClient.get(cacheKey);
       if (cachedResult) {
         console.log(`[CACHE HIT] for key: ${cacheKey}`);
         incrementMetric('hits');
-        return { success: true, data: JSON.parse(cachedResult) };
+        await this.updateLog(logId, 'COMPLETED', JSON.parse(cachedResult));
+        return;
       }
       console.log(`[CACHE MISS] for key: ${cacheKey}`);
       incrementMetric('misses');
@@ -30,45 +33,19 @@ class VerificationService {
       incrementMetric('misses');
     }
 
-    // 2. Charge the gateway's client
     const billingResult = await billingService.chargeWallet(
-      clientOrganization._id.toString(),
+      clientOrganizationId,
       type.toUpperCase(),
       idempotencyKey
     );
 
     if (!billingResult.success) {
-      let statusCode = 500;
-      let errorCode = 'BILLING500';
-
-      switch (billingResult.error) {
-        case 'INSUFFICIENT_FUNDS':
-          statusCode = 402;
-          errorCode = 'BILLING402';
-          break;
-        case 'WALLET_SUSPENDED':
-          statusCode = 403;
-          errorCode = 'BILLING403';
-          break;
-        case 'WALLET_NOT_FOUND':
-          statusCode = 404;
-          errorCode = 'BILLING404';
-          break;
-        default:
-          statusCode = 500;
-          errorCode = 'BILLING500';
-      }
-      
-      throw new AppError(billingResult.message || 'Billing failed', statusCode, errorCode);
+      await this.updateLog(logId, 'FAILED', null, `Billing failed: ${billingResult.message}`);
+      return;
     }
 
-    // 3. If client billing is successful, proceed to call the gov-provider
-    let status = 'FAILED';
-    let rawData = null;
-    let normalizedData = null;
-    let errorMessage = null;
-
     try {
+      let rawData = null;
       switch (type.toUpperCase()) {
         case 'NIN':
           rawData = await ninProvider.verify(id, mode, purpose);
@@ -83,33 +60,27 @@ class VerificationService {
           rawData = await dlProvider.verify(id, mode, purpose);
           break;
         default:
-          throw new AppError('Invalid verification type', 400, 'INVALID_TYPE');
+          throw new Error('Invalid verification type');
       }
 
       if (!rawData) {
-        status = 'NOT_FOUND';
-        errorMessage = 'Identity not found';
-        await this.logVerification(type, id, status, null, errorMessage);
-        throw new AppError(errorMessage, 404, 'NOT_FOUND');
+        await this.updateLog(logId, 'FAILED', null, 'Identity not found');
+        await billingService.refundWallet(clientOrganizationId, type.toUpperCase(), `refund_${logId}`);
+        return;
       }
 
-      normalizedData = await normalizer.normalize(type.toUpperCase(), rawData);
-      status = 'FOUND';
+      const normalizedData = await normalizer.normalize(type.toUpperCase(), rawData);
 
-      // 4. Store successful result in cache
       try {
         await redisClient.set(cacheKey, JSON.stringify(normalizedData), { EX: CACHE_TTL_SECONDS });
       } catch (redisError) {
         console.error('Redis SET error (graceful degradation):', redisError);
       }
 
-      await this.logVerification(type, id, status, normalizedData, null);
-
-      return { success: true, data: normalizedData };
+      await this.updateLog(logId, 'COMPLETED', normalizedData);
 
     } catch (error) {
-      errorMessage = error.message;
-      await this.logVerification(type, id, status, null, errorMessage);
+      console.error(`Verification job ${logId} failed:`, error.message);
       throw error;
     }
   }
@@ -119,22 +90,20 @@ class VerificationService {
     return `verification:${hash}`;
   }
 
-  async logVerification(type, id, status, data, errorMessage) {
+  async updateLog(logId, status, responsePayload = null, errorMessage = null) {
     try {
-      const logPayload = data ? { ...data } : null;
-      if (logPayload && logPayload.photo) {
-        logPayload.photo = '[BASE64_IMAGE_TRUNCATED]';
-      }
-
-      await VerificationLog.create({
-        verificationType: type.toUpperCase(),
-        searchId: id,
+      const update = {
         status,
-        responsePayload: logPayload,
-        errorMessage
-      });
+        responsePayload,
+        errorMessage,
+        completedAt: new Date(),
+      };
+      if (responsePayload && responsePayload.photo) {
+        update.responsePayload.photo = '[BASE64_IMAGE_TRUNCATED]';
+      }
+      await VerificationLog.findByIdAndUpdate(logId, update);
     } catch (logError) {
-      console.error('Logging failed:', logError);
+      console.error(`Failed to update log ${logId}:`, logError);
     }
   }
 }

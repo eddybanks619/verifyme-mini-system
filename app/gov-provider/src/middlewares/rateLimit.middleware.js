@@ -32,7 +32,7 @@ const rateLimit = (endpointName, maxRequests = DEFAULT_MAX_REQUESTS) => {
       res.setHeader('X-RateLimit-Reset', Math.floor(Date.now() / 1000) + ttl);
 
       if (currentCount > maxRequests) {
-        throw new AppError('Too many requests, please try again later.', 429, 'RATE_LIMIT_EXCEEDED');
+        throw new AppError('Too many requests, please try again later.',429, 'RATE_LIMIT_EXCEEDED');
       }
 
       next();

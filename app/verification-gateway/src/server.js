@@ -3,6 +3,8 @@ const app = require('./app');
 const mongoose = require('mongoose');
 const { connectDB } = require('./config/database');
 const { connectRedis } = require('./config/redis');
+const { connectRabbitMQ } = require('./config/rabbitmq');
+const { startWorker } = require('./workers/verification.worker');
 const seedData = require('./utils/seeder');
 
 const PORT = process.env.PORT || 3000;
@@ -10,17 +12,18 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/verificati
 
 const startServer = async () => {
   try {
-    // Connect to MongoDB
+
     await mongoose.connect(MONGO_URI);
     console.log('Connected to MongoDB (Verification Gateway)');
 
-    // Connect to PostgreSQL
     await connectDB();
 
-    // Connect to Redis
     await connectRedis();
 
-    // Seed Data
+    await connectRabbitMQ();
+
+    startWorker();
+
     await seedData();
 
     app.listen(PORT, () => {

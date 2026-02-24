@@ -2,30 +2,48 @@ const mongoose = require('mongoose');
 
 const verificationLogSchema = new mongoose.Schema({
   verificationType: {
-    type: String
-    // Removed enum to allow flexibility for future types
+    type: String,
+    required: true,
   },
   searchId: {
-    type: String
+    type: String,
+    required: true,
   },
   status: {
     type: String,
-    default: 'SUCCESS'
+    enum: ['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'],
+    default: 'PENDING',
+  },
+  retryCount: {
+    type: Number,
+    default: 0,
   },
   provider: {
     type: String,
-    default: 'GOV_PROVIDER'
+    default: 'GOV_PROVIDER',
   },
   responsePayload: {
-    type: mongoose.Schema.Types.Mixed // Allows any structure
+    type: mongoose.Schema.Types.Mixed,
   },
   errorMessage: {
-    type: String
+    type: String,
+  },
+  clientOrganizationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ClientOrganization',
+  },
+  idempotencyKey: {
+    type: String,
+    unique: true,
+    sparse: true
   },
   requestedAt: {
     type: Date,
-    default: Date.now
-  }
-}, { strict: false }); // Allow other fields to be saved if needed
+    default: Date.now,
+  },
+  completedAt: {
+    type: Date,
+  },
+}, { timestamps: true });
 
 module.exports = mongoose.model('VerificationLog', verificationLogSchema);

@@ -5,7 +5,9 @@ const validate = require('../../middlewares/validate.middleware');
 const rateLimit = require('../../middlewares/rateLimit.middleware');
 const { verifySchema } = require('../../modules/verification/data/schema/verification.schema');
 
-// Apply rate limiting: 100 requests per minute per client for this endpoint
-router.post('/verify', rateLimit('verify', 100), validate(verifySchema), verificationController.verifyIdentity);
+
+router.post('/verify', rateLimit('verify', 100), validate(verifySchema), verificationController.queueVerification);
+
+router.get('/verification/:id', rateLimit('get-status', 200), verificationController.getVerificationStatus);
 
 module.exports = router;

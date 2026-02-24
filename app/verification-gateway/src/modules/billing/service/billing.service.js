@@ -48,7 +48,6 @@ class BillingService {
 
       const balanceBefore = Number(wallet.balance);
 
-      // Use database-level increment for atomicity
       await wallet.increment('balance', { by: amount, transaction: t });
       await wallet.reload({ transaction: t });
 
@@ -115,11 +114,10 @@ class BillingService {
       const clientBalanceBefore = Number(clientWallet.balance);
       const systemBalanceBefore = Number(systemWallet.balance);
 
-      // Atomic updates
+
       await clientWallet.decrement('balance', { by: cost, transaction: t });
       await systemWallet.increment('balance', { by: cost, transaction: t });
 
-      // Reload to get updated balances for transaction logs
       await clientWallet.reload({ transaction: t });
       await systemWallet.reload({ transaction: t });
 
@@ -160,6 +158,69 @@ class BillingService {
         console.error('CRITICAL: System revenue wallet is missing!', error);
         return { success: false, error: 'SERVICE_UNAVAILABLE', message: 'The service is temporarily unavailable due to a configuration issue. Please try again later.' };
       }
+      throw error;
+    }
+  }
+
+  async refundWallet(organizationId, serviceType, reference) {
+    const cost = PRICING[serviceType];
+    if (!cost) {
+      return { success: false, error: 'INVALID_SERVICE', message: `Unknown service type: ${serviceType}` };
+    }
+
+    const existingRefund = await Transaction.findOne({ where: { reference, type: 'CREDIT', description: `Refund for failed ${serviceType} Verification` } });
+    if (existingRefund) {
+      console.log(`Refund with reference ${reference} already processed. Kindly hang on.`);
+      return { success: true, newBalance: existingRefund.balanceAfter };
+    }
+
+    const t = await sequelize.transaction();
+    try {
+      const clientWallet = await Wallet.findOne({ where: { organizationId }, transaction: t, lock: t.LOCK.UPDATE });
+      const systemWallet = await Wallet.findOne({ where: { organizationId: GATEWAY_SYSTEM_ORG_ID }, transaction: t, lock: t.LOCK.UPDATE });
+
+      if (!clientWallet || !systemWallet) {
+        throw new Error('Wallet not found during refund.');
+      }
+
+      const clientBalanceBefore = Number(clientWallet.balance);
+      const systemBalanceBefore = Number(systemWallet.balance);
+
+
+      await clientWallet.increment('balance', { by: cost, transaction: t });
+      await systemWallet.decrement('balance', { by: cost, transaction: t });
+
+      await clientWallet.reload({ transaction: t });
+      await systemWallet.reload({ transaction: t });
+
+      const clientBalanceAfter = Number(clientWallet.balance);
+      const systemBalanceAfter = Number(systemWallet.balance);
+
+      await Transaction.create({
+        walletId: clientWallet.id,
+        type: 'CREDIT',
+        amount: cost,
+        balanceBefore: clientBalanceBefore,
+        balanceAfter: clientBalanceAfter,
+        description: `Refund for failed ${serviceType} Verification`,
+        reference: reference,
+      }, { transaction: t });
+
+      await Transaction.create({
+        walletId: systemWallet.id,
+        type: 'DEBIT',
+        amount: cost,
+        balanceBefore: systemBalanceBefore,
+        balanceAfter: systemBalanceAfter,
+        description: `Refund to Org: ${organizationId}`,
+        reference: reference,
+      }, { transaction: t });
+
+      await t.commit();
+      return { success: true, newBalance: clientBalanceAfter };
+    } catch (error) {
+      await t.rollback();
+      console.error('Refund failed:', error);
       throw error;
     }
   }

@@ -8,7 +8,7 @@ class DLProvider {
     this.clientSecret = process.env.GOV_CLIENT_SECRET || 'gov-secret-key';
   }
 
-  // The gov-provider expects the signature to be generated from a string: "clientId.timestamp"
+
   generateSignature(timestamp) {
     const payloadString = `${this.clientId}.${timestamp}`;
     return crypto

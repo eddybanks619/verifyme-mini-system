@@ -15,10 +15,9 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'UP', service: 'Verification Gateway' });
 });
 
-// Mount API routes
+
 app.use('/api', routes);
 
-// Global Error Handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
   const statusCode = err.statusCode || 500;

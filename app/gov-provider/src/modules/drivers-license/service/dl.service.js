@@ -18,15 +18,15 @@ class DLService {
 
       switch (billingResult.error) {
         case 'INSUFFICIENT_FUNDS':
-          statusCode = 402; // Payment Required
+          statusCode = 402;
           errorCode = 'BILLING402';
           break;
         case 'WALLET_SUSPENDED':
-          statusCode = 403; // Forbidden
+          statusCode = 403;
           errorCode = 'BILLING403';
           break;
         case 'WALLET_NOT_FOUND':
-          statusCode = 404; // Not Found
+          statusCode = 404;
           errorCode = 'BILLING404';
           break;
         default:

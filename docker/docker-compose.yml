@@ -72,6 +72,15 @@ services:
     networks:
       - verifyme-network
 
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: verifyme-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - verifyme-network
+
   verification-gateway:
     build: ../app/verification-gateway
     container_name: verification-gateway
@@ -85,11 +94,13 @@ services:
       - GOV_CLIENT_SECRET=${GOV_CLIENT_SECRET}
       - POSTGRES_URI_GATEWAY=${POSTGRES_URI_GATEWAY}
       - REDIS_URL_GATEWAY=${REDIS_URL_GATEWAY}
+      - RABBITMQ_URL=amqp://rabbitmq:5672
     depends_on:
       - mongo
       - gov-provider
       - gateway-postgres
       - gateway-redis
+      - rabbitmq
     networks:
       - verifyme-network
 
