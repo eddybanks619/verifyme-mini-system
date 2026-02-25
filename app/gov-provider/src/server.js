@@ -4,6 +4,8 @@ const mongoose = require('mongoose');
 const seedData = require('./utils/seeder');
 const { connectDB } = require('./config/database');
 const { connectRedis } = require('./config/redis');
+const { connectRabbitMQ } = require('./config/rabbitmq');
+const { startWorker } = require('./workers/verification.worker');
 
 const PORT = process.env.PORT || 3001;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/gov-provider';
@@ -19,6 +21,12 @@ const startServer = async () => {
 
     // Connect to Redis
     await connectRedis();
+
+     // Connect to RabbitMQ
+    await connectRabbitMQ();
+
+    // Start Worker
+    startWorker();
 
     // Seed Data
     await seedData();

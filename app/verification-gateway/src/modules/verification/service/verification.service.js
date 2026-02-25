@@ -103,47 +103,39 @@ class VerificationService {
 
     // 3. Call the gov-provider
     try {
-      let rawData = null;
+      const callbackUrl = `${process.env.GATEWAY_BASE_URL}/api/v1/webhook/gov-provider`;
+      let providerResponse = null;
       switch (type.toUpperCase()) {
         case 'NIN':
-          rawData = await ninProvider.verify(id, mode, purpose);
+          providerResponse = await ninProvider.verify(id, mode, purpose, callbackUrl, logId);
           break;
         case 'BVN':
-          rawData = await bvnProvider.verify(id, mode, purpose);
+          providerResponse = await bvnProvider.verify(id, mode, purpose, callbackUrl, logId);
           break;
         case 'PASSPORT':
-          rawData = await passportProvider.verify(id, mode, purpose);
+          providerResponse = await passportProvider.verify(id, mode, purpose, callbackUrl, logId);
           break;
         case 'DRIVERS_LICENSE':
-          rawData = await dlProvider.verify(id, mode, purpose);
+          providerResponse = await dlProvider.verify(id, mode, purpose, callbackUrl, logId);
           break;
         default:
           throw new Error('Invalid verification type');
       }
 
-      if (!rawData) {
-        await this.updateLog(logId, 'FAILED', null, 'Identity not found');
-        // Refund the client
-        await billingService.refundWallet(clientOrganizationId, type.toUpperCase(), `refund_${logId}`);
-        return;
+      // Since gov-provider is now async, we expect a 202 Accepted response
+      if (providerResponse.status !== 202) {
+        throw new Error(`Unexpected response from gov-provider: ${providerResponse.status}`);
       }
 
-      const normalizedData = await normalizer.normalize(type.toUpperCase(), rawData);
-
-      // 4. Store in cache
-      try {
-        await redisClient.set(cacheKey, JSON.stringify(normalizedData), { EX: CACHE_TTL_SECONDS });
-      } catch (redisError) {
-        console.error('Redis SET error (graceful degradation):', redisError);
-      }
-
-      // 5. Update log to COMPLETED
-      await this.updateLog(logId, 'COMPLETED', normalizedData);
+      // The job is now successfully dispatched to the gov-provider.
+      // We don't update the log here, we wait for the webhook.
 
     } catch (error) {
       // This catches errors from the provider call (e.g., network issues)
-      console.error(`Verification job ${logId} failed:`, error.message);
-      throw error; // Throw to trigger retry logic in the worker
+      console.error(`Verification job ${logId} failed to dispatch:`, error.message);
+      // Refund the client as the job could not be dispatched
+      await billingService.refundWallet(clientOrganizationId, type.toUpperCase(), `refund_dispatch_failed_${logId}`);
+      await this.updateLog(logId, 'FAILED', null, `Failed to dispatch job to provider: ${error.message}`);
     }
   }
 
@@ -152,7 +144,7 @@ class VerificationService {
     return `verification:${hash}`;
   }
 
-  async updateLog(logId, status, responsePayload = null, errorMessage = null) {
+  async updateLog(logId, status, responsePayload , errorMessage ) {
     try {
       const update = {
         status,

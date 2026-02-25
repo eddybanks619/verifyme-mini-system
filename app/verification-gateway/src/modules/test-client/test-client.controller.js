@@ -3,16 +3,15 @@ const ClientOrganization = require('../../models/ClientOrganization.model');
 const asyncHandler = require('../../utils/asyncHandler');
 const AppError = require('../../utils/AppError');
 
-const POLLING_INTERVAL_MS = 1000;
-const POLLING_TIMEOUT_MS = 30000;
-
+// 1. Queue the Verification Job
 exports.testVerify = asyncHandler(async (req, res) => {
-
+  // Fetch the hardcoded test client organization
   const testClient = await ClientOrganization.findOne({ clientId: 'test-client-id' });
   if (!testClient) {
     throw new AppError('Test client organization not found. Please ensure it is seeded.', 404, 'NOT_FOUND');
   }
 
+  // Queue the verification job
   const { type, id, mode, purpose } = req.body;
   const idempotencyKey = req.headers['x-idempotency-key'] || `test-${Date.now()}`;
 
@@ -25,28 +24,34 @@ exports.testVerify = asyncHandler(async (req, res) => {
     idempotencyKey,
   });
 
-  const verificationId = result.job._id;
+  if (result.isDuplicate) {
+    return res.status(200).json({
+      status: result.job.status,
+      message: 'This request has already been processed. Returning existing status.',
+      verificationId: result.job._id,
+      identity: result.job.searchId,
+    });
+  }
 
-  const pollForStatus = new Promise((resolve, reject) => {
-    const interval = setInterval(async () => {
-      try {
-        const statusResult = await verificationService.getJobStatus(verificationId, testClient);
-        if (statusResult.status === 'COMPLETED' || statusResult.status === 'FAILED') {
-          clearInterval(interval);
-          resolve(statusResult);
-        }
-      } catch (error) {
-        clearInterval(interval);
-        reject(error);
-      }
-    }, POLLING_INTERVAL_MS);
-
-    setTimeout(() => {
-      clearInterval(interval);
-      reject(new AppError('Polling timed out after 30 seconds.', 504, 'GATEWAY_TIMEOUT'));
-    }, POLLING_TIMEOUT_MS);
+  res.status(202).json({
+    status: 'PENDING',
+    message: 'Verification request has been accepted and is being processed.',
+    verificationId: result.job._id,
+    identity: id,
   });
+});
 
-  const finalResult = await pollForStatus;
-  res.status(200).json(finalResult);
+// 2. Check the Status of a Job
+exports.testCheckStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  
+  // Fetch the hardcoded test client organization again for authorization check
+  const testClient = await ClientOrganization.findOne({ clientId: 'test-client-id' });
+  if (!testClient) {
+    throw new AppError('Test client organization not found.', 404, 'NOT_FOUND');
+  }
+
+  const statusResult = await verificationService.getJobStatus(id, testClient);
+
+  res.status(200).json(statusResult);
 });

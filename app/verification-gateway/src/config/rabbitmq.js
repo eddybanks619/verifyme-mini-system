@@ -1,11 +1,12 @@
 const amqp = require('amqplib');
 
-
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://rabbitmq:5672';
+
 
 const VERIFICATION_EXCHANGE = 'verification_exchange';
 const VERIFICATION_QUEUE = 'verification_queue';
 const VERIFICATION_ROUTING_KEY = 'verification.create';
+
 
 const RETRY_EXCHANGE = 'verification_retry_exchange';
 const RETRY_QUEUE = 'verification_retry_queue';
@@ -27,26 +28,64 @@ const connectRabbitMQ = async () => {
     await channel.assertQueue(DEAD_LETTER_QUEUE, { durable: true });
     await channel.bindQueue(DEAD_LETTER_QUEUE, DEAD_LETTER_EXCHANGE, DEAD_LETTER_ROUTING_KEY);
 
+
     await channel.assertExchange(VERIFICATION_EXCHANGE, 'direct', { durable: true });
 
-    await channel.assertQueue(VERIFICATION_QUEUE, {
-      durable: true,
-      arguments: {
-        'x-dead-letter-exchange': DEAD_LETTER_EXCHANGE,
-        'x-dead-letter-routing-key': DEAD_LETTER_ROUTING_KEY,
-      },
-    });
+
+    try {
+      await channel.assertQueue(VERIFICATION_QUEUE, {
+        durable: true,
+        arguments: {
+          'x-dead-letter-exchange': DEAD_LETTER_EXCHANGE,
+          'x-dead-letter-routing-key': DEAD_LETTER_ROUTING_KEY,
+        },
+      });
+    } catch (err) {
+      if (err.code === 406) {
+        console.warn(`Queue ${VERIFICATION_QUEUE} mismatch. Deleting and recreating...`);
+        channel = await connection.createChannel();
+        await channel.deleteQueue(VERIFICATION_QUEUE);
+        await channel.assertQueue(VERIFICATION_QUEUE, {
+          durable: true,
+          arguments: {
+            'x-dead-letter-exchange': DEAD_LETTER_EXCHANGE,
+            'x-dead-letter-routing-key': DEAD_LETTER_ROUTING_KEY,
+          },
+        });
+      } else {
+        throw err;
+      }
+    }
     await channel.bindQueue(VERIFICATION_QUEUE, VERIFICATION_EXCHANGE, VERIFICATION_ROUTING_KEY);
+
 
     await channel.assertExchange(RETRY_EXCHANGE, 'direct', { durable: true });
 
-    await channel.assertQueue(RETRY_QUEUE, {
-      durable: true,
-      arguments: {
-        'x-dead-letter-exchange': VERIFICATION_EXCHANGE,
-        'x-dead-letter-routing-key': VERIFICATION_ROUTING_KEY,
-      },
-    });
+
+    try {
+      await channel.assertQueue(RETRY_QUEUE, {
+        durable: true,
+        arguments: {
+          'x-dead-letter-exchange': VERIFICATION_EXCHANGE,
+          'x-dead-letter-routing-key': VERIFICATION_ROUTING_KEY,
+        },
+      });
+    } catch (err) {
+      if (err.code === 406) {
+        console.warn(`Queue ${RETRY_QUEUE} mismatch. Deleting and recreating...`);
+        channel = await connection.createChannel();
+        await channel.deleteQueue(RETRY_QUEUE);
+        await channel.assertQueue(RETRY_QUEUE, {
+          durable: true,
+          arguments: {
+            'x-dead-letter-exchange': VERIFICATION_EXCHANGE,
+            'x-dead-letter-routing-key': VERIFICATION_ROUTING_KEY,
+          },
+        });
+      } else {
+        throw err;
+      }
+    }
     await channel.bindQueue(RETRY_QUEUE, RETRY_EXCHANGE, RETRY_ROUTING_KEY);
 
     console.log('Connected to RabbitMQ. Exchanges and Queues configured for Retry/DLQ.');
@@ -61,6 +100,7 @@ const publishToQueue = (data) => {
     console.error('RabbitMQ channel is not available.');
     return;
   }
+  
   channel.publish(
     VERIFICATION_EXCHANGE,
     VERIFICATION_ROUTING_KEY,

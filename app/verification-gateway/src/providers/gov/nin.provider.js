@@ -17,18 +17,20 @@ class NINProvider {
       .digest('hex');
   }
 
-  async verify(id, mode = 'basic_identity', purpose = 'IDENTITY_VERIFICATION') {
+  async verify(id, mode = 'basic_identity', purpose = 'IDENTITY_VERIFICATION', callbackUrl, verificationId) {
     try {
       const timestamp = Date.now().toString();
       const requestBody = {
         id,
         mode,
         purpose,
-        consent: true
+        consent: true,
+        callbackUrl,
+        verificationId,
       };
-      // Generate signature using only clientId and timestamp, as expected by gov-provider
+      
       const signature = this.generateSignature(timestamp);
-      const idempotencyKey = crypto.randomUUID(); // Generate a unique key for this request
+      const idempotencyKey = crypto.randomUUID();
 
       const response = await axios.post(`${this.baseUrl}/api/v1/nin/verify`, requestBody, {
         headers: { 
@@ -38,11 +40,9 @@ class NINProvider {
           'x-idempotency-key': idempotencyKey
         }
       });
-      return response.data.data;
+      return response; // Return the entire response
     } catch (error) {
       if (error.response) {
-        if (error.response.status === 404) return null;
-        
         const customError = new Error(error.response.data.message || error.response.statusText);
         customError.statusCode = error.response.status;
         customError.code = error.response.data.code;

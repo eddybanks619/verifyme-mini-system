@@ -17,18 +17,21 @@ class PassportProvider {
         .digest('hex');
   }
 
-  async verify(id, mode = 'basic_identity', purpose = 'IDENTITY_VERIFICATION') {
+  async verify(id, mode = 'basic_identity', purpose = 'IDENTITY_VERIFICATION', callbackUrl, verificationId) {
     try {
       const timestamp = Date.now().toString();
-      const signature = this.generateSignature(timestamp);
-      const idempotencyKey = crypto.randomUUID();
-
-      const response = await axios.post(`${this.baseUrl}/api/v1/passport/verify`, {
+      const requestBody = {
         id,
         mode,
         purpose,
-        consent: true
-      }, {
+        consent: true,
+        callbackUrl,
+        verificationId,
+      };
+      const signature = this.generateSignature(timestamp);
+      const idempotencyKey = crypto.randomUUID();
+
+      const response = await axios.post(`${this.baseUrl}/api/v1/passport/verify`, requestBody, {
         headers: { 
           'x-client-id': this.clientId,
           'x-timestamp': timestamp,
@@ -36,11 +39,9 @@ class PassportProvider {
           'x-idempotency-key': idempotencyKey
         }
       });
-      return response.data.data;
+      return response;
     } catch (error) {
       if (error.response) {
-        if (error.response.status === 404) return null;
-        
         const customError = new Error(error.response.data.message || error.response.statusText);
         customError.statusCode = error.response.status;
         customError.code = error.response.data.code;
