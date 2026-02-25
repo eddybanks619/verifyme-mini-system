@@ -4,7 +4,7 @@ const asyncHandler = require('../../../utils/asyncHandler');
 exports.fundWallet = asyncHandler(async (req, res) => {
   const { amount, reference } = req.body;
   const idempotencyKey = req.headers['x-idempotency-key'];
-  const organizationId = req.clientOrganization._id.toString(); // From auth middleware
+  const organizationId = req.clientOrganization._id.toString();
 
   const result = await billingService.fundWallet(organizationId, amount, reference, idempotencyKey);
   res.json({ status: 'success', data: result });
