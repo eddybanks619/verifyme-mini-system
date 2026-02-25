@@ -52,13 +52,13 @@ const startWorker = () => {
         if (callbackUrl) {
           try {
             await axios.post(callbackUrl, {
-              verificationId: verificationId, // Use the logId from the gateway
+              verificationId: verificationId,
               status: error ? 'FAILED' : 'COMPLETED',
               data: result ? result.data : null,
               error: error
             }, {
               headers: {
-                'x-gov-signature': 'simulated-signature' // In real world, sign the payload
+                'x-gov-signature': 'simulated-signature'
               }
             });
             console.log(`Webhook sent for ${type} verification ${verificationId}`);

@@ -97,11 +97,9 @@ class VerificationService {
 
     if (!billingResult.success) {
       await this.updateLog(logId, 'FAILED', null, `Billing failed: ${billingResult.message}`);
-      // No refund needed as charge failed
       return;
     }
 
-    // 3. Call the gov-provider
     try {
       const callbackUrl = `${process.env.GATEWAY_BASE_URL}/api/v1/webhook/gov-provider`;
       let providerResponse = null;
@@ -122,18 +120,13 @@ class VerificationService {
           throw new Error('Invalid verification type');
       }
 
-      // Since gov-provider is now async, we expect a 202 Accepted response
       if (providerResponse.status !== 202) {
         throw new Error(`Unexpected response from gov-provider: ${providerResponse.status}`);
       }
 
-      // The job is now successfully dispatched to the gov-provider.
-      // We don't update the log here, we wait for the webhook.
 
     } catch (error) {
-      // This catches errors from the provider call (e.g., network issues)
       console.error(`Verification job ${logId} failed to dispatch:`, error.message);
-      // Refund the client as the job could not be dispatched
       await billingService.refundWallet(clientOrganizationId, type.toUpperCase(), `refund_dispatch_failed_${logId}`);
       await this.updateLog(logId, 'FAILED', null, `Failed to dispatch job to provider: ${error.message}`);
     }
