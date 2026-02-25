@@ -82,7 +82,7 @@ class VerificationService {
         console.incrementMetric('hits');
         await this.updateLog(logId, 'COMPLETED', JSON.parse(cachedResult));
         return;
-      }og(`[CACHE MISS] for key: ${cacheKey}`);
+      }console.log(`[CACHE MISS] for key: ${cacheKey}`);
       incrementMetric('misses');
     } catch (redisError) {
       console.error('Redis GET error (graceful degradation):', redisError);
@@ -101,6 +101,7 @@ class VerificationService {
       return;
     }
 
+    // 3. Call the gov-provider
     try {
       let rawData = null;
       switch (type.toUpperCase()) {

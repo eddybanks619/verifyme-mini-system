@@ -1,9 +1,9 @@
-const { getChannel, VERIFICATION_QUEUE } = require('../config/rabbitmq');
-const VerificationService = require('../modules/verification/service/verification.service');
+const { getChannel, VERIFICATION_QUEUE, publishToRetryQueue } = require('../config/rabbitmq');
+const verificationService = require('../modules/verification/service/verification.service');
 const VerificationLog = require('../models/verification-log.model');
 const billingService = require('../modules/billing/service/billing.service');
 
-const MAX_RETRIES = 3;
+const MAX_RETRIES = 5;
 
 const startWorker = () => {
   const channel = getChannel();
@@ -18,11 +18,11 @@ const startWorker = () => {
   channel.consume(VERIFICATION_QUEUE, async (msg) => {
     if (msg !== null) {
       const jobData = JSON.parse(msg.content.toString());
-      const { logId, type, clientOrganizationId} = jobData;
+      const { logId, type, clientOrganizationId } = jobData;
 
       try {
         await VerificationLog.findByIdAndUpdate(logId, { status: 'PROCESSING' });
-        await VerificationService.processVerificationJob(jobData);
+        await verificationService.processVerificationJob(jobData);
         channel.ack(msg);
         console.log(`Job ${logId} processed successfully.`);
       } catch (error) {
@@ -32,22 +32,39 @@ const startWorker = () => {
         const currentRetries = log.retryCount || 0;
 
         if (currentRetries < MAX_RETRIES) {
+          const delay = Math.pow(2, currentRetries) * 1000;
+
+          console.log(`Retrying job ${logId} in ${delay}ms (Attempt ${currentRetries + 1}/${MAX_RETRIES})`);
+
 
           await VerificationLog.findByIdAndUpdate(logId, { 
             status: 'PENDING', 
             retryCount: currentRetries + 1,
-            errorMessage: `Processing failed. Retrying... (${error.message})`
+            errorMessage: `Processing failed. Retrying in ${delay}ms... (${error.message})`
           });
-          channel.nack(msg, false, false);
+
+
+          publishToRetryQueue(jobData, delay);
+
+          channel.ack(msg);
         } else {
+
+          console.error(`Job ${logId} failed permanently after ${MAX_RETRIES} retries.`);
+
           await VerificationLog.findByIdAndUpdate(logId, {
             status: 'FAILED',
             errorMessage: `Verification failed after ${MAX_RETRIES} retries: ${error.message}`,
             completedAt: new Date(),
           });
-          await billingService.refundWallet(clientOrganizationId, type.toUpperCase(), `refund_failed_${logId}`);
-          channel.ack(msg);
-          console.log(`Job ${logId} failed permanently and was refunded.`);
+
+          try {
+            await billingService.refundWallet(clientOrganizationId, type.toUpperCase(), `refund_failed_${logId}`);
+            console.log(`Refunded client for job ${logId}`);
+          } catch (refundError) {
+            console.error(`Failed to refund client for job ${logId}:`, refundError);
+          }
+
+          channel.nack(msg, false, false);
         }
       }
     }
