@@ -3,22 +3,50 @@ const ClientOrganization = require('../../models/ClientOrganization.model');
 const asyncHandler = require('../../utils/asyncHandler');
 const AppError = require('../../utils/AppError');
 
+const POLLING_INTERVAL_MS = 1000;
+const POLLING_TIMEOUT_MS = 30000;
+
 exports.testVerify = asyncHandler(async (req, res) => {
-  // 1. Fetch the hardcoded test client organization from the database
+
   const testClient = await ClientOrganization.findOne({ clientId: 'test-client-id' });
   if (!testClient) {
-    throw new AppError('Test client organization not found in database. Please ensure it is seeded.', 404, 'NOT_FOUND');
+    throw new AppError('Test client organization not found. Please ensure it is seeded.', 404, 'NOT_FOUND');
   }
 
-  // 2. Get the verification details from the request body
   const { type, id, mode, purpose } = req.body;
-  const idempotencyKey = req.headers['x-idempotency-key'] || `test-${Date.now()}`; // Generate a key if not provided
+  const idempotencyKey = req.headers['x-idempotency-key'] || `test-${Date.now()}`;
 
-  // 3. Call the verification service, passing the test client organization
-  const result = await verificationService.verifyIdentity(type, id, mode, purpose, testClient, idempotencyKey);
-
-  res.json({
-    status: 'success',
-    data: result.data
+  const result = await verificationService.createVerificationJob({
+    type,
+    id,
+    mode,
+    purpose,
+    clientOrganization: testClient,
+    idempotencyKey,
   });
+
+  const verificationId = result.job._id;
+
+  const pollForStatus = new Promise((resolve, reject) => {
+    const interval = setInterval(async () => {
+      try {
+        const statusResult = await verificationService.getJobStatus(verificationId, testClient);
+        if (statusResult.status === 'COMPLETED' || statusResult.status === 'FAILED') {
+          clearInterval(interval);
+          resolve(statusResult);
+        }
+      } catch (error) {
+        clearInterval(interval);
+        reject(error);
+      }
+    }, POLLING_INTERVAL_MS);
+
+    setTimeout(() => {
+      clearInterval(interval);
+      reject(new AppError('Polling timed out after 30 seconds.', 504, 'GATEWAY_TIMEOUT'));
+    }, POLLING_TIMEOUT_MS);
+  });
+
+  const finalResult = await pollForStatus;
+  res.status(200).json(finalResult);
 });
