@@ -37,11 +37,7 @@ const startWorker = () => {
         let result = null;
         let error = null;
 
-        // // Simulate processing delay (optional, can be removed for production speed)
-        // await new Promise(resolve => setTimeout(resolve, 1000));
-
         try {
-          // Construct a mock organization object as expected by the services
           const organization = { _id: organizationId };
 
           switch (type) {
@@ -65,7 +61,6 @@ const startWorker = () => {
           error = err.message;
         }
 
-        // Send Webhook
         if (callbackUrl) {
           try {
             console.log(`Sending webhook to ${callbackUrl} for ${resolvedVerificationId}`);
@@ -78,31 +73,26 @@ const startWorker = () => {
               headers: { 'x-gov-signature': 'simulated-signature' }
             });
             console.log(`Webhook sent successfully for verification ${resolvedVerificationId}`);
-            channel.ack(msg); // Acknowledge after successful webhook
+            channel.ack(msg);
           } catch (webhookError) {
-            // Webhook call failed, so we need to retry
             console.error(`Failed to send webhook for ${resolvedVerificationId}:`, webhookError.message);
-            throw new Error('Webhook delivery failed'); // Throw to trigger retry logic
+            throw new Error('Webhook delivery failed');
           }
         } else {
-          // No callbackUrl, so just acknowledge the message
           console.warn(`No callbackUrl for job ${resolvedVerificationId}. Acknowledging message.`);
           channel.ack(msg);
         }
       } catch (processingError) {
-        // This block now primarily catches webhook delivery failures
         if (retryCount < MAX_RETRIES) {
           const delay = Math.pow(2, retryCount) * 1000;
           console.log(`Retrying webhook for ${resolvedVerificationId} in ${delay}ms (Attempt ${retryCount + 1}/${MAX_RETRIES})`);
 
-          // Add retryCount to the job data for the next attempt
           const nextJobData = { ...jobData, retryCount: retryCount + 1 };
           publishToRetryQueue(nextJobData, delay);
 
-          channel.ack(msg); // Ack the original message
+          channel.ack(msg);
         } else {
           console.error(`Webhook for ${resolvedVerificationId} failed permanently after ${MAX_RETRIES} retries.`);
-          // Nack to send to DLQ for manual inspection
           channel.nack(msg, false, false);
         }
       }

@@ -18,7 +18,7 @@ mongoose.set('bufferTimeoutMS', Number(process.env.MONGO_BUFFER_TIMEOUT_MS || 30
 
 const startServer = async () => {
   try {
-    // Connect to MongoDB
+
     await mongoose.connect(MONGO_URI, {
       serverSelectionTimeoutMS: MONGO_SERVER_SELECTION_TIMEOUT_MS,
       socketTimeoutMS: MONGO_SOCKET_TIMEOUT_MS,
@@ -26,19 +26,15 @@ const startServer = async () => {
     });
     console.log('Connected to MongoDB (Gov Provider)');
 
-    // Connect to PostgreSQL
+
     await connectDB();
 
-    // Connect to Redis
     await connectRedis();
 
-     // Connect to RabbitMQ
     await connectRabbitMQ();
 
-    // Start Worker
     startWorker();
 
-    // Seed Data
     await seedData();
 
     app.listen(PORT, () => {

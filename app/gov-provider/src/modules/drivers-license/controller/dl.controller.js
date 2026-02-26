@@ -6,7 +6,6 @@ exports.verifyDL = asyncHandler(async (req, res) => {
   const organization = req.organization;
   const idempotencyKey = req.headers['x-idempotency-key'];
 
-  // Queue the verification job
   const jobData = {
     type: 'DRIVERS_LICENSE',
     id,

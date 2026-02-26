@@ -106,40 +106,33 @@ class VerificationService {
 
   async processVerificationJob(jobData) {
     const { logId, type, id, mode, purpose, clientOrganizationId, idempotencyKey } = jobData;
-    console.log(`[DEBUG] Processing job ${logId}. Step 1: Cache Check`);
 
     const cacheKey = this.generateCacheKey(type, id, mode);
     try {
       const cachedResult = await redisClient.get(cacheKey);
       if (cachedResult) {
-        console.log(`[CACHE HIT] for key: ${cacheKey}`);
         incrementMetric('hits');
         await this.updateLog(logId, 'COMPLETED', JSON.parse(cachedResult));
         return;
       }
-      console.log(`[CACHE MISS] for key: ${cacheKey}`);
       incrementMetric('misses');
     } catch (redisError) {
       console.error('Redis GET error (graceful degradation):', redisError);
       incrementMetric('misses');
     }
 
-    console.log(`[DEBUG] Job ${logId}. Step 2: Charging Wallet`);
     const billingResult = await billingService.chargeWallet(
       clientOrganizationId,
       type.toUpperCase(),
       idempotencyKey
     );
-    console.log(`[DEBUG] Job ${logId}. Wallet Charged. Success: ${billingResult.success}`);
 
     if (!billingResult.success) {
-      console.log(`[DEBUG] Job ${logId}. Billing failed: ${billingResult.message}`);
       await this.updateLog(logId, 'FAILED', null, `Billing failed: ${billingResult.message}`);
       return;
     }
 
     try {
-      console.log(`[DEBUG] Job ${logId}. Step 3: Calling Gov Provider`);
       const callbackUrl = `${process.env.GATEWAY_BASE_URL}/api/v1/webhook/gov-provider`;
       let providerResponse = null;
       switch (type.toUpperCase()) {
@@ -158,8 +151,6 @@ class VerificationService {
         default:
           throw new Error('Invalid verification type');
       }
-
-      console.log(`[DEBUG] Job ${logId}. Provider Response Status: ${providerResponse.status}`);
 
       if (providerResponse.status !== 202) {
         throw new Error(`Unexpected response from gov-provider: ${providerResponse.status}`);
