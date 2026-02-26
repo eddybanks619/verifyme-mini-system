@@ -2,17 +2,14 @@ const amqp = require('amqplib');
 
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://rabbitmq:5672';
 
-// Main Exchange & Queue
 const GOV_EXCHANGE = 'gov_verification_exchange';
 const GOV_QUEUE = 'gov_verification_queue';
 const GOV_ROUTING_KEY = 'gov.verify';
 
-// Retry Exchange & Queue
 const GOV_RETRY_EXCHANGE = 'gov_retry_exchange';
 const GOV_RETRY_QUEUE = 'gov_retry_queue';
 const GOV_RETRY_ROUTING_KEY = 'gov.retry';
 
-// Dead Letter Exchange & Queue
 const GOV_DLX = 'gov_dlx';
 const GOV_DLQ = 'gov_dlq';
 const GOV_DLQ_ROUTING_KEY = 'gov.dlq';
@@ -26,15 +23,12 @@ const connectRabbitMQ = async () => {
     channel = await connection.createChannel();
     console.log('[DEBUG] RabbitMQ Channel created.');
 
-    // 1. DLX and DLQ
     await channel.assertExchange(GOV_DLX, 'direct', { durable: true });
     await channel.assertQueue(GOV_DLQ, { durable: true });
     await channel.bindQueue(GOV_DLQ, GOV_DLX, GOV_DLQ_ROUTING_KEY);
 
-    // 2. Main Exchange
     await channel.assertExchange(GOV_EXCHANGE, 'direct', { durable: true });
 
-    // 3. Main Queue
     try {
       await channel.assertQueue(GOV_QUEUE, {
         durable: true,
@@ -61,10 +55,8 @@ const connectRabbitMQ = async () => {
     }
     await channel.bindQueue(GOV_QUEUE, GOV_EXCHANGE, GOV_ROUTING_KEY);
 
-    // 4. Retry Exchange
     await channel.assertExchange(GOV_RETRY_EXCHANGE, 'direct', { durable: true });
 
-    // 5. Retry Queue
     try {
       await channel.assertQueue(GOV_RETRY_QUEUE, {
         durable: true,
