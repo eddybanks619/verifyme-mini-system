@@ -12,7 +12,9 @@ const verificationSchema = Joi.object({
   }),
   consent: Joi.boolean().valid(true).required().messages({
     'any.only': 'USER CONSENT REQUIRED'
-  })
+  }),
+  callbackUrl: Joi.string().uri().optional(),
+  verificationId: Joi.string().optional(),
 });
 
 const validatePrivacy = (req, res, next) => {

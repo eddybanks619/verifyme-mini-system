@@ -3,7 +3,7 @@ const crypto = require('crypto');
 
 class NINProvider {
   constructor() {
-    this.baseUrl = process.env.GOV_PROVIDER_URL;
+    this.baseUrl = process.env.GOV_PROVIDER_URL ||'http://gov-provider:3001';
     this.clientId = process.env.GOV_CLIENT_ID || 'gov-client-id';
     this.clientSecret = process.env.GOV_CLIENT_SECRET || 'gov-secret-key';
   }
@@ -32,15 +32,15 @@ class NINProvider {
       const signature = this.generateSignature(timestamp);
       const idempotencyKey = crypto.randomUUID();
 
-      const response = await axios.post(`${this.baseUrl}/api/v1/nin/verify`, requestBody, {
-        headers: { 
+      return await axios.post(`${this.baseUrl}/api/v1/nin/verify`, requestBody, {
+        headers: {
           'x-client-id': this.clientId,
           'x-timestamp': timestamp,
           'x-signature': signature,
           'x-idempotency-key': idempotencyKey
-        }
-      });
-      return response; // Return the entire response
+        },
+        timeout: 30000 // 30 seconds timeout
+      }); // Return the entire response
     } catch (error) {
       if (error.response) {
         const customError = new Error(error.response.data.message || error.response.statusText);

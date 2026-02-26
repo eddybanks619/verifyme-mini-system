@@ -9,6 +9,9 @@ const verificationLogSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  mode: {
+    type: String, // Store the mode (e.g., 'basic_identity')
+  },
   status: {
     type: String,
     enum: ['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'],

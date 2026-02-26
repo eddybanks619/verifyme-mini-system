@@ -28,6 +28,7 @@ class VerificationService {
     const verificationLog = await VerificationLog.create({
       verificationType: type,
       searchId: id,
+      mode: mode, // Save the mode
       status: 'PENDING',
       clientOrganizationId: clientOrganization._id,
       idempotencyKey: idempotencyKey,
@@ -54,11 +55,9 @@ class VerificationService {
       throw new AppError('Verification record not found.', 404, 'NOT_FOUND');
     }
 
-
     if (verification.clientOrganizationId.toString() !== clientOrganization._id.toString()) {
       throw new AppError('You are not authorized to view this verification record.', 403, 'FORBIDDEN');
     }
-
 
     return {
       status: verification.status,
@@ -70,37 +69,77 @@ class VerificationService {
     };
   }
 
+  async handleWebhook(payload) {
+    const { verificationId, status, data, error } = payload;
+    console.log(`[DEBUG] Handling webhook for ${verificationId}. Status: ${status}`);
+
+    const log = await VerificationLog.findById(verificationId);
+    if (!log) {
+      console.error(`[DEBUG] Log not found for ${verificationId}`);
+      throw new AppError('Verification record not found for webhook.', 404, 'NOT_FOUND');
+    }
+
+    if (log.status === 'COMPLETED' || log.status === 'FAILED') {
+      console.log(`Webhook ignored: Job ${verificationId} is already ${log.status}`);
+      return;
+    }
+
+    if (status === 'COMPLETED') {
+      console.log(`[DEBUG] Updating log ${verificationId} to COMPLETED`);
+      await this.updateLog(verificationId, 'COMPLETED', data, null);
+
+      // Use the saved mode from the log, or default to 'basic_identity' if missing (legacy)
+      const mode = log.mode || 'basic_identity';
+      const cacheKey = this.generateCacheKey(log.verificationType, log.searchId, mode);
+      try {
+        await redisClient.set(cacheKey, JSON.stringify(data), { EX: CACHE_TTL_SECONDS });
+        console.log(`[DEBUG] Cached result for ${cacheKey}`);
+      } catch (redisError) {
+        console.error('Redis SET error (graceful degradation):', redisError);
+      }
+
+    } else if (status === 'FAILED') {
+      console.log(`[DEBUG] Updating log ${verificationId} to FAILED`);
+      await this.updateLog(verificationId, 'FAILED', null, error);
+    }
+  }
+
   async processVerificationJob(jobData) {
     const { logId, type, id, mode, purpose, clientOrganizationId, idempotencyKey } = jobData;
+    console.log(`[DEBUG] Processing job ${logId}. Step 1: Cache Check`);
 
     const cacheKey = this.generateCacheKey(type, id, mode);
     try {
       const cachedResult = await redisClient.get(cacheKey);
       if (cachedResult) {
         console.log(`[CACHE HIT] for key: ${cacheKey}`);
-
-        console.incrementMetric('hits');
+        incrementMetric('hits');
         await this.updateLog(logId, 'COMPLETED', JSON.parse(cachedResult));
         return;
-      }console.log(`[CACHE MISS] for key: ${cacheKey}`);
+      }
+      console.log(`[CACHE MISS] for key: ${cacheKey}`);
       incrementMetric('misses');
     } catch (redisError) {
       console.error('Redis GET error (graceful degradation):', redisError);
       incrementMetric('misses');
     }
 
+    console.log(`[DEBUG] Job ${logId}. Step 2: Charging Wallet`);
     const billingResult = await billingService.chargeWallet(
       clientOrganizationId,
       type.toUpperCase(),
       idempotencyKey
     );
+    console.log(`[DEBUG] Job ${logId}. Wallet Charged. Success: ${billingResult.success}`);
 
     if (!billingResult.success) {
+      console.log(`[DEBUG] Job ${logId}. Billing failed: ${billingResult.message}`);
       await this.updateLog(logId, 'FAILED', null, `Billing failed: ${billingResult.message}`);
       return;
     }
 
     try {
+      console.log(`[DEBUG] Job ${logId}. Step 3: Calling Gov Provider`);
       const callbackUrl = `${process.env.GATEWAY_BASE_URL}/api/v1/webhook/gov-provider`;
       let providerResponse = null;
       switch (type.toUpperCase()) {
@@ -120,10 +159,11 @@ class VerificationService {
           throw new Error('Invalid verification type');
       }
 
+      console.log(`[DEBUG] Job ${logId}. Provider Response Status: ${providerResponse.status}`);
+
       if (providerResponse.status !== 202) {
         throw new Error(`Unexpected response from gov-provider: ${providerResponse.status}`);
       }
-
 
     } catch (error) {
       console.error(`Verification job ${logId} failed to dispatch:`, error.message);
@@ -137,7 +177,7 @@ class VerificationService {
     return `verification:${hash}`;
   }
 
-  async updateLog(logId, status, responsePayload , errorMessage ) {
+  async updateLog(logId, status, responsePayload = null, errorMessage = null) {
     try {
       const update = {
         status,
@@ -149,6 +189,7 @@ class VerificationService {
         update.responsePayload.photo = '[BASE64_IMAGE_TRUNCATED]';
       }
       await VerificationLog.findByIdAndUpdate(logId, update);
+      console.log(`[DEBUG] Log ${logId} updated to ${status}`);
     } catch (logError) {
       console.error(`Failed to update log ${logId}:`, logError);
     }

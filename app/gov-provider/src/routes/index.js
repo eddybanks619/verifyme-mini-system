@@ -6,11 +6,9 @@ const auditRoutes = require('./v1/audit.routes');
 const billingRoutes = require('./v1/billing.routes');
 
 const authenticate = require('../middlewares/authenticate.middleware');
-const rateLimiter = require('../middlewares/rateLimit.middleware');
 
 // Apply Global Middleware
 router.use(authenticate);
-router.use(rateLimiter);
 
 // Mount Routes
 router.use('/v1', identityRoutes);

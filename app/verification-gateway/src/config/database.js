@@ -15,9 +15,9 @@ const connectDB = async () => {
   try {
     await sequelize.authenticate();
     console.log('Connected to PostgreSQL (Gateway Billing)');
-    await sequelize.sync();
   } catch (error) {
     console.error('Gateway PostgreSQL connection error:', error);
+    process.exit(1);
   }
 };
 

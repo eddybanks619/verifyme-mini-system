@@ -43,6 +43,7 @@ services:
       - MONGO_URI=${MONGO_URI_GOV}
       - POSTGRES_URI=postgres://postgres:postgres@gov-postgres:5432/gov_billing
       - REDIS_URL=redis://gov-redis:6379
+      - RABBITMQ_URL=amqp://rabbitmq:5672
     depends_on:
       - mongo
       - gov-postgres
@@ -95,6 +96,7 @@ services:
       - POSTGRES_URI_GATEWAY=${POSTGRES_URI_GATEWAY}
       - REDIS_URL_GATEWAY=${REDIS_URL_GATEWAY}
       - RABBITMQ_URL=amqp://rabbitmq:5672
+      - GATEWAY_BASE_URL=http://verification-gateway:3000
     depends_on:
       - mongo
       - gov-provider

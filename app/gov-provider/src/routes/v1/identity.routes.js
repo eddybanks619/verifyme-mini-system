@@ -13,7 +13,7 @@ const rateLimit = require('../../middlewares/rateLimit.middleware');
 // Apply privacy validation to all identity routes
 router.use(validatePrivacy);
 
-router.post('/nin/verify', rateLimit('nin', 100), authorize('NIN'), ninController.verifyNIN);
+router.post('/nin/verify', rateLimit('nin', 100), ninController.verifyNIN);
 router.post('/bvn/verify', rateLimit('bvn', 100), authorize('BVN'), bvnController.verifyBVN);
 router.post('/passport/verify', rateLimit('passport', 100), authorize('PASSPORT'), passportController.verifyPassport);
 router.post('/drivers-license/verify', rateLimit('drivers-license', 100), authorize('DRIVERS_LICENSE'), dlController.verifyDL);

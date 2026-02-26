@@ -6,8 +6,11 @@ const sequelize = new Sequelize(process.env.POSTGRES_URI, {
   pool: {
     max: 5,
     min: 0,
-    acquire: 30000,
+    acquire: Number(process.env.PG_POOL_ACQUIRE_TIMEOUT_MS || 5000),
     idle: 10000
+  },
+  dialectOptions: {
+    connectTimeout: Number(process.env.PG_CONNECT_TIMEOUT_MS || 5000)
   }
 });
 
@@ -19,6 +22,7 @@ const connectDB = async () => {
     await sequelize.sync(); 
   } catch (error) {
     console.error('PostgreSQL connection error:', error);
+    throw error;
   }
 };
 

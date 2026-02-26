@@ -1,5 +1,8 @@
 const Organization = require('../models/Organization.model');
 const { verifySignature } = require('../security/hmac.util');
+const mongoose = require('mongoose');
+
+const AUTH_DB_QUERY_TIMEOUT_MS = Number(process.env.AUTH_DB_QUERY_TIMEOUT_MS || 3000);
 
 const authenticate = async (req, res, next) => {
   try {
@@ -14,7 +17,16 @@ const authenticate = async (req, res, next) => {
       });
     }
 
-    const organization = await Organization.findOne({ clientId });
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({
+        code: 'AUTH503',
+        message: 'AUTHENTICATION SERVICE UNAVAILABLE'
+      });
+    }
+
+    const organization = await Organization.findOne({ clientId })
+      .maxTimeMS(AUTH_DB_QUERY_TIMEOUT_MS)
+      .exec();
 
     if (!organization) {
       return res.status(401).json({
@@ -47,6 +59,17 @@ const authenticate = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('Auth Error:', error);
+    if (
+      error?.name === 'MongoServerSelectionError' ||
+      error?.name === 'MongooseServerSelectionError' ||
+      error?.name === 'MongoNetworkError'
+    ) {
+      return res.status(503).json({
+        code: 'AUTH503',
+        message: 'AUTHENTICATION SERVICE UNAVAILABLE'
+      });
+    }
+
     res.status(500).json({
       code: 'SERVER_ERROR',
       message: 'INTERNAL SERVER ERROR'

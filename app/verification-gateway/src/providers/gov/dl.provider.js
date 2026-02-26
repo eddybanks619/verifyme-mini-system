@@ -37,7 +37,8 @@ class DLProvider {
           'x-timestamp': timestamp,
           'x-signature': signature,
           'x-idempotency-key': idempotencyKey
-        }
+        },
+        timeout: 10000
       });
       return response;
     } catch (error) {
