@@ -16,27 +16,21 @@ const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/verificati
 
 const startServer = async () => {
   try {
-    // Connect to MongoDB
+
     await mongoose.connect(MONGO_URI);
     console.log('Connected to MongoDB (Verification Gateway)');
 
-    // Connect to PostgreSQL
     await connectDB();
-    
-    // Sync Sequelize Models
+
     await sequelize.sync();
     console.log('PostgreSQL Database Synced');
 
-    // Connect to Redis
     await connectRedis();
 
-    // Connect to RabbitMQ
     await connectRabbitMQ();
 
-    // Start Worker
     startWorker();
 
-    // Seed Data
     await seedData();
 
     app.listen(PORT, () => {

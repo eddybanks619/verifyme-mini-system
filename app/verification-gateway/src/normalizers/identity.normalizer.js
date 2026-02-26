@@ -50,7 +50,7 @@ class IdentityNormalizer {
     }
   }
 
-  async normalize(type, data) {
+  async normalize(type, data = {}) {
     const base = {
       firstName: data.firstName,
       lastName: data.lastName,

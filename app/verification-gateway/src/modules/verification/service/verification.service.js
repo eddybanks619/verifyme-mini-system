@@ -28,7 +28,7 @@ class VerificationService {
     const verificationLog = await VerificationLog.create({
       verificationType: type,
       searchId: id,
-      mode: mode, // Save the mode
+      mode: mode,
       status: 'PENDING',
       clientOrganizationId: clientOrganization._id,
       idempotencyKey: idempotencyKey,
@@ -71,11 +71,9 @@ class VerificationService {
 
   async handleWebhook(payload) {
     const { verificationId, status, data, error } = payload;
-    console.log(`[DEBUG] Handling webhook for ${verificationId}. Status: ${status}`);
 
     const log = await VerificationLog.findById(verificationId);
     if (!log) {
-      console.error(`[DEBUG] Log not found for ${verificationId}`);
       throw new AppError('Verification record not found for webhook.', 404, 'NOT_FOUND');
     }
 
@@ -85,21 +83,23 @@ class VerificationService {
     }
 
     if (status === 'COMPLETED') {
-      console.log(`[DEBUG] Updating log ${verificationId} to COMPLETED`);
-      await this.updateLog(verificationId, 'COMPLETED', data, null);
+      if (!data || typeof data !== 'object') {
+        await this.updateLog(verificationId, 'FAILED', null, 'Invalid webhook payload: missing verification data');
+        return;
+      }
 
-      // Use the saved mode from the log, or default to 'basic_identity' if missing (legacy)
+      const normalizedData = await normalizer.normalize(log.verificationType, data);
+      await this.updateLog(verificationId, 'COMPLETED', normalizedData, null);
+
       const mode = log.mode || 'basic_identity';
       const cacheKey = this.generateCacheKey(log.verificationType, log.searchId, mode);
       try {
         await redisClient.set(cacheKey, JSON.stringify(data), { EX: CACHE_TTL_SECONDS });
-        console.log(`[DEBUG] Cached result for ${cacheKey}`);
       } catch (redisError) {
         console.error('Redis SET error (graceful degradation):', redisError);
       }
 
     } else if (status === 'FAILED') {
-      console.log(`[DEBUG] Updating log ${verificationId} to FAILED`);
       await this.updateLog(verificationId, 'FAILED', null, error);
     }
   }
